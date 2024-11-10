@@ -2,11 +2,17 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <fcntl.h>
 
-#include "config.h"
-#include "client_orchestre.h"
-#include "orchestre_service.h"
-#include "service.h"
+#include "../CONFIG/config.h"
+#include "../CLIENT_ORCHESTRE/client_orchestre.h"
+#include "../ORCHESTRE_SERVICE/orchestre_service.h"
+#include "../SERVICE/service.h"
+#include "../UTILS/myassert.h"
 
 
 static void usage(const char *exeName, const char *message)
@@ -21,7 +27,7 @@ int main(int argc, char * argv[])
 {
     if (argc != 2)
         usage(argv[0], "nombre paramètres incorrect");
-    
+
     bool fin = false;
 
     // lecture du fichier de configuration
@@ -31,7 +37,23 @@ int main(int argc, char * argv[])
     // - création de 2 tubes nommés pour converser avec les clients
     // - création d'un sémaphore pour que deux clients ne
     //   ne communiquent pas en même temps avec l'orchestre
-    
+    int ret;
+
+    ret = mkfifo(ORCH_TO_CLIENT, 0644);     //creation pipe orch->client
+    myassert(ret == 0, "echec de la creation du tube orch->client\n");
+    ret = mkfifo(CLIENT_TO_ORCH, 0644);     //creation pipe client->orch
+    myassert(ret == 0, "echec de la creation du tube client->orch\n");
+
+    key_t key = ftok(CLIENT_ORCH, CLIENT_ORCH_KEY);     //cle pour sema client<-->orch
+    myassert(key != -1, "echec de la creation de la cle pour le semaphore client<-->orch\n");
+
+    int semClientOrch = semget(key, 1, IPC_CREAT | IPC_EXCL | 0641);    //creation sema client<-->orch
+    myassert(semClientOrch != -1, "echec de la creation du semaphore client<-->orch (semClientOrch)\n");
+
+    ret = semctl(semClientOrch, 0, SETVAL, 1);
+    myassert(ret != -1, "echec de l'initialisation du semaphore client<-->orch (semClientOrch)\n");
+
+
     // lancement des services, avec pour chaque service :
     // - création d'un tube anonyme pour converser (orchestre vers service)
     // - un sémaphore pour que le service préviene l'orchestre de la
@@ -39,10 +61,16 @@ int main(int argc, char * argv[])
     // - création de deux tubes nommés (pour chaque service) pour les
     //   communications entre les clients et les services
 
+
     while (! fin)
     {
         // ouverture ici des tubes nommés avec un client
         // attente d'une demande de service du client
+        int pipeOrchToClient = open(ORCH_TO_CLIENT, 'w');
+        myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en ecriture\n");
+
+        int pipeClientToOrch = open(CLIENT_TO_ORCH, 'r');
+        myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en lecture\n");
 
         // détecter la fin des traitements lancés précédemment via
         // les sémaphores dédiés (attention on n'attend pas la
@@ -67,6 +95,8 @@ int main(int argc, char * argv[])
 
         // attente d'un accusé de réception du client
         // fermer les tubes vers le client
+        close(pipeOrchToClient);
+        close(pipeClientToOrch);
 
         // il peut y avoir un problème si l'orchestre revient en haut de la
         // boucle avant que le client ait eu le temps de fermer les tubes
@@ -84,6 +114,13 @@ int main(int argc, char * argv[])
     // attente de la terminaison des processus services
 
     // libération des ressources
-    
+    ret = unlink(ORCH_TO_CLIENT);   //destruction du tube orch->client
+    myassert(ret != -1, "echec de la destruction du tube orch->client\n");
+    ret = unlink(CLIENT_TO_ORCH);   //destruction du tube client->orch
+    myassert(ret != -1, "echec de la destruction du tube client->orch\n");
+
+    ret = semctl(semClientOrch, -1, IPC_RMID);
+    myassert(ret != -1, "echec de la destruction du semaphore client<-->orch\n");
+
     return EXIT_SUCCESS;
 }

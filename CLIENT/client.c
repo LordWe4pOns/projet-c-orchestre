@@ -1,19 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <fcntl.h>
 
-#include "io.h"
-#include "memory.h"
-#include "myassert.h"
+#include "../UTILS/io.h"
+#include "../UTILS/memory.h"
+#include "../UTILS/myassert.h"
 
-#include "service.h"
-#include "client_orchestre.h"
-#include "client_service.h"
+#include "../SERVICE/service.h"
+#include "../CLIENT_ORCHESTRE/client_orchestre.h"
+#include "../CLIENT_SERVICE/client_service.h"
 
-#include "client_arret.h"
-#include "client_somme.h"
-#include "client_sigma.h"
-#include "client_compression.h"
+#include "../CLIENT/client_arret.h"
+#include "../CLIENT/client_somme.h"
+#include "../CLIENT/client_sigma.h"
+#include "../CLIENT/client_compression.h"
 
 
 static void usage(const char *exeName, const char *message)
@@ -42,12 +47,36 @@ int main(int argc, char * argv[])
     //         ou . client_somme_verifArgs
     //         ou . client_compression_verifArgs
     //         ou . client_sigma_verifArgs
+    switch (numService){
+        case SERVICE_ARRET : client_arret_verifArgs(argc, argv);
+        case SERVICE_SOMME : client_somme_verifArgs(argc, argv);
+        case SERVICE_COMPRESSION : client_compression_verifArgs(argc, argv);
+        case SERVICE_SIGMA : client_sigma_verifArgs(argc, argv);
+    }
 
     // initialisations diverses s'il y a lieu
+    int ret;
+
+    key_t key = ftok(CLIENT_ORCH, CLIENT_ORCH_KEY);     //cle pour sema client<-->orch
+    myassert(key != -1, "echec de la creation de la cle pour le semaphore client<-->orch\n");
+
+    int semClientOrch = semget(key, 1, 0);    //recup sema client<-->orch
+    myassert(semClientOrch != -1, "echec de la recuperation du semaphore client<-->orch (semClientOrch)\n");
+
 
     // entrée en section critique pour communiquer avec l'orchestre
-    
+    struct sembuf accessOrch = {0, -1, 0};
+    ret = semop(semClientOrch, &accessOrch, 1);
+    myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
+    printf("Mise en place de la communication avec l'orchestre...\n");
+
     // ouverture des tubes avec l'orchestre
+    int pipeOrchToClient = open(ORCH_TO_CLIENT, 'r');
+    myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en lecture\n");
+
+    int pipeClientToOrch = open(CLIENT_TO_ORCH, 'w');
+    myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en ecriture\n");
+
 
     // envoi à l'orchestre du numéro du service
 
@@ -83,6 +112,6 @@ int main(int argc, char * argv[])
     // finsi
 
     // libération éventuelle de ressources
-    
+
     return EXIT_SUCCESS;
 }
