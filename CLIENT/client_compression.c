@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
 
-#include "client_service.h"
+#include "../CLIENT_SERVICE/client_service.h"
 #include "client_compression.h"
 
 
@@ -31,8 +33,12 @@ static void usage(const char *exeName, const char *numService, const char *messa
 void client_compression_verifArgs(int argc, char * argv[])
 {
     if (argc != 3)
-        usage(argv[0], argv[1], "nombre d'arguments");
+        usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
     // éventuellement d'autres tests
+    if (argv[1][0] != 1)
+        usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n" );
+    if (argv[2][0] == '\0')
+        usage(argv[0], argv[1], "la chaîne à compresser est vide.\n");
 }
 
 
@@ -45,10 +51,19 @@ void client_compression_verifArgs(int argc, char * argv[])
 // Les paramètres sont
 // - le file descriptor du tube de communication vers le service
 // - la chaîne devant être compressée
-static void sendData(/* fd_pipe_to_service,*/ /* chaine_à_envoyer */)
+static void sendData(int fd_pipe_to_service, const char *chaine_a_envoyer)
 {
-    // envoi de la chaîne à compresser
+    int len = (int)strlen(chaine_a_envoyer);
+
+    int envoi = write(fd_pipe_to_service, chaine_a_envoyer, len);
+
+    if ((int)envoi != len) {
+        fprintf(stderr, "Erreur : tous les octets n'ont pas été envoyés\n");
+    } else {
+        printf("Données envoyées au service : %s\n", chaine_a_envoyer);
+    }
 }
+
 
 // ---------------------------------------------
 // fonction de réception des résultats en provenance du service et affichage
