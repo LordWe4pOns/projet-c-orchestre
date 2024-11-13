@@ -60,6 +60,44 @@ int main(int argc, char * argv[])
     //   fin d'un traitement
     // - création de deux tubes nommés (pour chaque service) pour les
     //   communications entre les clients et les services
+    //creation pipe et sema orch<-->service somme
+    ret = pipe(pipeOrchToServ0);
+    myassert(ret == 0, "echec de la creation du tube anonyme vers le service somme\n");
+    key = ftok(ORCH_SERV, ORCH_SERV_SUM_KEY);
+    myassert(key != -1, "echec de la creation de la cle pour le semaphore orch<-->serv_somme\n");
+    int semOrchServSum = semget(key, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(semOrchServSum != -1, "echec de la creation du semaphore orch<-->serv_somme (semOrchServSum)\n");
+
+    //creation pipe et sema orch<-->service compression
+    ret = pipe(pipeOrchToServ1);
+    myassert(ret == 0, "echec de la creation du tube anonyme vers le service compression\n");
+    key = ftok(ORCH_SERV, ORCH_SERV_COMP_KEY);
+    myassert(key != -1, "echec de la creation de la cle pour le semaphore orch<-->serv_compression\n");
+    int semOrchServComp = semget(key, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(semOrchServComp != -1, "echec de la creation du semaphore orch<-->serv_compression (semOrchServComp)\n");
+
+    //creation pipe et sema orch<-->service sigma
+    ret = pipe(pipeOrchToServ2);
+    myassert(ret == 0, "echec de la creation du tube anonyme vers le service sigma\n");
+    key = ftok(ORCH_SERV, ORCH_SERV_SIG_KEY);
+    myassert(key != -1, "echec de la creation de la cle pour le semaphore orch<-->serv_sigma\n");
+    int semOrchServSigma = semget(key, IPC_CREAT | IPC_EXCL | 0641);
+    myassert(semOrchServSigma != -1, "echec de la creation du semaphore orch<-->serv_sigma (semOrchServSigma)\n");
+
+    //service 0 : somme
+    ret = fork();
+    myassert(ret != -1, "echec de la 1ere duplication de l'orchestre\n");
+    if (ret == 0){
+        char * servArgv[6];
+        servArgv[0] = "../SERVICE/service";
+        sprintf(servArgv[1], "%d", ORCH_SERV_SUM_KEY);
+        sprintf(servArgv[2], "%d", ORCH_SERV_SUM_KEY);
+        sprintf(servArgv[3], "%d", );
+        sprintf(servArgv[4], "%d", );
+        sprintf(servArgv[5], "%d", );
+        execv(servArgv[0], servArgv);
+        myassert(false, "erreur : retour dans orchestre apres execv(service somme)\n");
+    }
 
 
     while (! fin)
@@ -71,6 +109,11 @@ int main(int argc, char * argv[])
 
         int pipeClientToOrch = open(CLIENT_TO_ORCH, 'r');
         myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en lecture\n");
+
+        int serv;
+        ret = read(pipeClientToOrch, &serv, sizeof(int));
+        myassert(ret != 0, "echec de la lecture de la demande de service dans le tube pipeClientToOrch\n");
+        myassert(ret == sizeof(int), "erreur dans la lecture de la demande de service\n");
 
         // détecter la fin des traitements lancés précédemment via
         // les sémaphores dédiés (attention on n'attend pas la
@@ -92,6 +135,7 @@ int main(int argc, char * argv[])
         //     envoi du mot de passe au client (via le tube nommé)
         //     envoi des noms des tubes nommés au client (via le tube nommé)
         // finsi
+
 
         // attente d'un accusé de réception du client
         // fermer les tubes vers le client

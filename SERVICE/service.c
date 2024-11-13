@@ -34,6 +34,10 @@ int main(int argc, char * argv[])
         usage(argv[0], "nombre paramètres incorrect");
 
     // initialisations diverses : analyse de argv
+    int servNum = atoi(argv[1]);
+    key_t key = ftok(ORCH_SERV, atoi(argv[2]));
+    int fd = argv[3];
+    
 
     while (true)
     {
