@@ -48,10 +48,11 @@ int main(int argc, char * argv[])
     //         ou . client_compression_verifArgs
     //         ou . client_sigma_verifArgs
     switch (numService){
-        case SERVICE_ARRET : client_arret_verifArgs(argc, argv);
-        case SERVICE_SOMME : client_somme_verifArgs(argc, argv);
-        case SERVICE_COMPRESSION : client_compression_verifArgs(argc, argv);
-        case SERVICE_SIGMA : client_sigma_verifArgs(argc, argv);
+        case SERVICE_ARRET : client_arret_verifArgs(argc, argv); break;
+        case SERVICE_SOMME : client_somme_verifArgs(argc, argv); break;
+        case SERVICE_COMPRESSION : client_compression_verifArgs(argc, argv); break;
+        case SERVICE_SIGMA : client_sigma_verifArgs(argc, argv); break;
+        default : myassert(false, "numero de service incorrect\n");
     }
 
     // initialisations diverses s'il y a lieu

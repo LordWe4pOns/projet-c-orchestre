@@ -32,7 +32,7 @@ static void usage(const char *exeName, const char *numService, const char *messa
 void client_sigma_verifArgs(int argc, char * argv[])
 {
     if (argc < 4)
-        usage(argv[0], argv[1], "nombre d'arguments");
+        usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
     // éventuellement d'autres tests
 }
 
@@ -72,7 +72,7 @@ static void receiveResult(/* fd_pipe_from_service,*/ /* autres paramètres si n�
 // Cette fonction analyse argv et en déduit les données à envoyer
 //    - argv[2] : nombre de threads
 //    - argv[3] à argv[argc-1]: les nombres flottants
-void client_sigma(/* fd des tubes avec le service, */ int argc, char * argv[])
+void client_sigma(int fd_pipe_to_service, int fd_pipe_from_service, int argc, char * argv[])
 {
     // variables locales éventuelles
     sendData(/* paramètres */);
