@@ -80,8 +80,15 @@ int main(int argc, char * argv[])
 
 
     // envoi à l'orchestre du numéro du service
+    int serv;
+    printf("Quel service voulez-vous ?\n%d : Somme\n%d : Compression\n%d : Sigma\n%d : Arret\n", SERVICE_SOMME, SERVICE_COMPRESSION, SERVICE_SIGMA, SERVICE_ARRET);
+    scanf("%d", &serv);
+    ret = write(pipeClientToOrch, &serv, sizeof(int));
+    myassert(ret != -1, "echec de l'ecriture de la demande de service dans le tube pipeClientToOrch\n");
+    myassert(ret == sizeof(int), "erreur dans l'ecriture de la demande de service");
 
     // attente code de retour
+
     // si code d'erreur
     //     afficher un message erreur
     // sinon si demande d'arrêt (i.e. numService == -1)
