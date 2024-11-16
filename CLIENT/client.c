@@ -58,8 +58,6 @@ int main(int argc, char * argv[])
 
     // initialisations diverses s'il y a lieu
     int ret;
-    int pipeServToClient;
-    int pipeClientToServ;
 
     key_t key = ftok(CLIENT_ORCH, CLIENT_ORCH_KEY);     //cle pour sema client<-->orch
     myassert(key != -1, "echec de la creation de la cle pour le semaphore client<-->orch\n");
@@ -132,7 +130,8 @@ int main(int argc, char * argv[])
     //     finsi
     //     fermeture des tubes avec le service
     // finsi
-    int password, tubeC2S, tubeS2C;
+    int password;
+    char tubeC2S[SIZE_FD + 1], tubeS2C[SIZE_FD + 1];
     if (retCode == ERROR_CODE){
         printf("Erreur : service non disponible\n");
     } else {
@@ -141,14 +140,17 @@ int main(int argc, char * argv[])
         } else {
             ret = read(pipeOrchToClient, &password, sizeof(int));
             myassert(ret != -1, "echec de la reception du mot de passe\n");
-            ret = read(pipeOrchToClient, &tubeC2S, sizeof(int));
+            ret = read(pipeOrchToClient, &tubeC2S, sizeof(char) * SIZE_FD);
             myassert(ret != -1, "echec de la reception du tube client-->serv\n");
-            ret = read(pipeOrchToClient, &tubeS2C, sizeof(int));
+            ret = read(pipeOrchToClient, &tubeS2C, sizeof(char) * SIZE_FD);
             myassert(ret != -1, "echec de la reception du tube client<--serv\n");
+            tubeC2S[SIZE_FD] = '\0';
+            tubeS2C[SIZE_FD] = '\0';
         }
     }
 
-    ret = write(pipeClientToOrch, VALIDATION_CODE, sizeof(int));
+    int code = VALIDATION_CODE;
+    ret = write(pipeClientToOrch, &code, sizeof(int));
     myassert(ret != -1, "echec de l'envoi de l'accuse de reception\n");
 
     ret = close(pipeClientToOrch);
@@ -156,10 +158,10 @@ int main(int argc, char * argv[])
     ret = close(pipeOrchToClient);
     myassert(ret != -1, "echec de la fermeture du tube pipeOrchToClient\n");
 
-    accessOrch = {0, 1, 0};
-    ret = semop(ClientDone, &accessOrch, 1);
+    struct sembuf op = {0, 1, 0};
+    ret = semop(ClientDone, &op, 1);
     myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
-    ret = semop(semClientOrch, &accessOrch, 1);
+    ret = semop(semClientOrch, &op, 1);
     myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
 
     if (retCode != ERROR_CODE && numServ != -1){
@@ -176,12 +178,18 @@ int main(int argc, char * argv[])
             printf("erreur : mot de passe incorrect\n");
         } else {
             switch (numServ){
-                case SERVICE_SOMME : client_somme(pipeServToClient, pipeClientToServ); break;
-                case SERVICE_COMPRESSION : service_compression(pipeServToClient, pipeClientToServ); break;
-                case SERVICE_SIGMA : service_sigma(pipeServToClient, pipeClientToServ); break;
+                case SERVICE_SOMME : client_somme(pipeClientToServ, pipeServToClient, argc, argv); break;
+                case SERVICE_COMPRESSION : client_compression(pipeClientToServ, pipeServToClient, argc, argv); break;
+                case SERVICE_SIGMA : client_sigma(pipeClientToServ, pipeServToClient, argc, argv); break;
                 default : myassert(false, "erreur : numero de service incorrect\n");
             }
+            ret = write(pipeClientToServ, &retCode, sizeof(int));
+            myassert(ret != -1, "echec de l'envoi de l'accusé de reception\n");
         }
+        ret = close(pipeServToClient);
+        myassert(ret != -1, "echec de la fermeture du tube pipeServToClient\n");
+        ret = close(pipeClientToServ);
+        myassert(ret != -1, "echec de la fermeture du tube pipeClientToServ\n");
     }
     
     

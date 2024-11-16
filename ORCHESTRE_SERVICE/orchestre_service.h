@@ -13,10 +13,4 @@ int pipeOrchToServ2[2];     //orch-->service sigma
 
 #define ORCH_SERV_KEY 1337
 
-//service 1 : compression
-#define ORCH_SERV_COMP_KEY 2
-
-//service 2 : sigma
-#define ORCH_SERV_SIG_KEY 3
-
 #endif

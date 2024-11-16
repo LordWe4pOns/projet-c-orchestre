@@ -52,7 +52,7 @@ int main(int argc, char * argv[])
 
     char* servToClient = argv[4];
 
-    char* ClientToServ = argv[5];
+    char* clientToServ = argv[5];
 
     int ret;
     bool fin = false;
@@ -96,13 +96,13 @@ int main(int argc, char * argv[])
             ret = read(pipeFromOrch, &password, sizeof(int));
             myassert(ret != -1, "echec de la reception du mot de passe\n");
 
-            int pipeServToClient = open(argv[4], O_WRONLY);     //ouverture tube serv-->client
-            int pipeClientToServ = open(argv[5], O_RDONLY);     //ouverture tube client-->serv
+            int pipeServToClient = open(servToClient, O_WRONLY);     //ouverture tube serv-->client
+            int pipeClientToServ = open(clientToServ, O_RDONLY);     //ouverture tube client-->serv
             
             int val;
             ret = read(pipeClientToServ, &val, sizeof(int));
             myassert(ret != -1, "echec de la reception du mot de passe client\n");
-            if (password != fromClient){
+            if (password != val){
                 val = ERROR_CODE;
                 ret = write(pipeServToClient, &val, sizeof(int));
                 myassert(ret != -1, "echec de l'envoi du code d'erreur au client\n");
@@ -111,9 +111,9 @@ int main(int argc, char * argv[])
                 ret = write(pipeServToClient, &val, sizeof(int));
                 myassert(ret != -1, "echec de l'envoi du code d'acceptation au client\n");
                 switch (servNum){
-                    case SERVICE_SOMME : service_somme(pipeServToClient, pipeClientToServ); break;
-                    case SERVICE_COMPRESSION : service_compression(pipeServToClient, pipeClientToServ); break;
-                    case SERVICE_SIGMA : service_sigma(pipeServToClient, pipeClientToServ); break;
+                    case SERVICE_SOMME : service_somme(pipeClientToServ, pipeServToClient); break;
+                    case SERVICE_COMPRESSION : service_compression(pipeClientToServ, pipeServToClient); break;
+                    case SERVICE_SIGMA : service_sigma(pipeClientToServ, pipeServToClient); break;
                     default : myassert(false, "erreur : numero de service incorrect\n");
                 }
                 ret = read(pipeClientToServ, &val, sizeof(int));
@@ -123,8 +123,8 @@ int main(int argc, char * argv[])
             myassert(ret != -1, "echec de la fermeture du tube pipeClientToServ");
             ret = close(pipeServToClient);
             myassert(ret != -1, "echec de la fermeture du tube pipeServToClient");
-            op ={servNum, 1, 0};
-            ret = semop(semOrchServ, &op, SERVICE_NB);
+            struct sembuf endOp = {servNum, 1, 0};
+            ret = semop(semOrchServ, &endOp, SERVICE_NB);
             myassert(ret != -1, "echec du changement de valeur de semOrchServ\n");
         }
     }
