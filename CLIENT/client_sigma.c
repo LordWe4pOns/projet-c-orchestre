@@ -50,7 +50,7 @@ void client_sigma_verifArgs(int argc, char * argv[])
             usage(argv[0], argv[1], "Ce n'est pas un tableau exclusivement de flottants.\n");
         }
         if (valeur == 0.0f && fin_arg == argv[i]) { // si valeur = 0.0f c'est que strtof n'a pas pu effectuer une conversion valide
-        usage(argv[0], argv[1], "Ce n'est pas un tableau exclusivement de flottants.\n");
+            usage(argv[0], argv[1], "Ce n'est pas un tableau exclusivement de flottants.\n");
         }
     }
 } 
