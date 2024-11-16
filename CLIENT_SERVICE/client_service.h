@@ -13,4 +13,7 @@
 #define CLIENT_TO_SERV_SIG "pipe_c2s_2"
 #define SERV_SIG_TO_CLIENT "pipe_s2c_2"
 
+#define ERROR_CODE -1
+#define VALIDATION_CODE 0
+
 #endif
