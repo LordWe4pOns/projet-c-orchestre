@@ -1,9 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "client_service.h"
 #include "client_sigma.h"
+#include "../UTILS/myassert.h"
 
 
 /*----------------------------------------------*
@@ -31,11 +34,26 @@ static void usage(const char *exeName, const char *numService, const char *messa
 
 void client_sigma_verifArgs(int argc, char * argv[])
 {
-    if (argc < 4)
-        usage(argv[0], argv[1], "nombre d'arguments");
-    // éventuellement d'autres tests
-}
+    int nb_threads = atoi(argv[2]);
 
+    if (argc < 4)
+        usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
+    if (argv[1][0] != 2)
+        usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n" );
+    if (nb_threads > argc - 3)
+        usage(argv[0], argv[1], "Il ne peut pas y avoir plus de threads que de cases dans le tableau.\n");
+
+    for (int i = 3; i < argc; i++) {
+        char *fin_arg;
+        float valeur = strtof(argv[i], &fin_arg);
+        if (*fin_arg != '\0') {
+            usage(argv[0], argv[1], "Ce n'est pas un tableau exclusivement de flottants.\n");
+        }
+        if (valeur == 0.0f && fin_arg == argv[i]) { // si valeur = 0.0f c'est que strtof n'a pas pu effectuer une conversion valide
+            usage(argv[0], argv[1], "Ce n'est pas un tableau exclusivement de flottants.\n");
+        }
+    }
+} 
 
 /*----------------------------------------------*
  * fonctions de communication avec le service
@@ -47,9 +65,15 @@ void client_sigma_verifArgs(int argc, char * argv[])
 // - le file descriptor du tube de communication vers le service
 // - le nombre de threads que doit utiliser le service
 // - le tableau de float dont on veut la somme
-static void sendData(/* fd_pipe_to_service,*/ /* nbre_threads, */ /* tableau_de_float_à_envoyer */)
+static void sendData(int fd_pipe_to_service, int nb_threads, float *tab_float, int size)
 {
-    // envoi du nombre de threads et du tableau de float
+    int envoi_nb_threads = write(fd_pipe_to_service, &nb_threads, sizeof(nb_threads));
+    myassert(envoi_nb_threads != sizeof(nb_threads), "Erreur : tous les octets n'ont pas été envoyés.\n");
+
+    int envoi_tab = write(fd_pipe_to_service, tab_float, sizeof(float) * size);
+    myassert(envoi_tab != (int)sizeof(float) * size, "Erreur : le tableau ne s'est pas bien envoyé.\n");
+
+    printf("Données envoyées au service : %d threads, %d valeurs.\n", nb_threads, size);
 }
 
 // ---------------------------------------------
@@ -57,10 +81,14 @@ static void sendData(/* fd_pipe_to_service,*/ /* nbre_threads, */ /* tableau_de_
 // Les paramètres sont
 // - le file descriptor du tube de communication en provenance du service
 // - autre chose si nécessaire
-static void receiveResult(/* fd_pipe_from_service,*/ /* autres paramètres si nécessaire */)
+static void receiveResult(int fd_pipe_from_service)
 {
-    // récupération du résultat
-    // affichage du résultat
+    float res;
+
+    int res_lu = read(fd_pipe_from_service, &res, sizeof(res));
+    myassert(res_lu != sizeof(res), "Erreur : problème dans le résultat reçu.\n");
+
+    printf("Résultat reçu du service : %f\n", res);
 }
 
 
@@ -72,10 +100,19 @@ static void receiveResult(/* fd_pipe_from_service,*/ /* autres paramètres si n�
 // Cette fonction analyse argv et en déduit les données à envoyer
 //    - argv[2] : nombre de threads
 //    - argv[3] à argv[argc-1]: les nombres flottants
-void client_sigma(/* fd des tubes avec le service, */ int argc, char * argv[])
+void client_sigma(int fd_pipe_to_service, int fd_pipe_from_service, int argc, char * argv[])
 {
-    // variables locales éventuelles
-    sendData(/* paramètres */);
-    receiveResult(/* paramètres */);
+    client_sigma_verifArgs(argc, argv);
+
+    int nb_threads = atoi(argv[2]);
+    int size = argc - 2;
+    float tab_float[size];
+
+    for (int i = 0; i < size; i++) {
+        tab_float[i] = atof(argv[i + 3]);
+    }
+
+    sendData(fd_pipe_to_service, nb_threads, tab_float, size);
+    receiveResult(fd_pipe_from_service);
 }
 

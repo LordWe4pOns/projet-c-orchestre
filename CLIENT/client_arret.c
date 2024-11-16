@@ -27,5 +27,7 @@ static void usage(const char *exeName, const char *numService, const char *messa
 void client_arret_verifArgs(int argc, char * argv[])
 {
     if (argc != 2)
-        usage(argv[0], argv[1], "nombre d'arguments");
+        usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
+    if (argv[1][0] != -1)
+        usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n");
 }

@@ -13,6 +13,6 @@ void client_somme_verifArgs(int argc, char * argv[]);
 
 
 // fonction pour gérer la communication avec le service
-void client_somme(/* fd des deux tubes avec le service, */ int argc, char * argv[]);
+void client_somme(int fd_pipe_to_service, int fd_pipe_from_service, int argc, char * argv[]);
 
 #endif
