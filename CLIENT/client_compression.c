@@ -56,10 +56,10 @@ static void sendData(int fd_pipe_to_service, const char *chaine_a_envoyer)
     int len = (int)strlen(chaine_a_envoyer);
 
     int envoi_len = write(fd_pipe_to_service, &len, sizeof(int));
-    myassert(envoi_len != sizeof(len), "Erreur : la longueur de la chaîne n'a pas été envoyée.\n");
+    myassert(envoi_len == sizeof(len), "Erreur : la longueur de la chaîne n'a pas été envoyée.\n");
 
     int envoi = write(fd_pipe_to_service, chaine_a_envoyer, sizeof(char) *len);
-    myassert((int)envoi != len, "Erreur : tous les octets n'ont pas été envoyés.\n");
+    myassert((int)envoi == len, "Erreur : tous les octets n'ont pas été envoyés.\n");
     
     printf("Données envoyées au service : %s\n", chaine_a_envoyer);
 }
@@ -74,15 +74,15 @@ static void receiveResult(int fd_pipe_from_service)
 {
     int len;
 
-    int taille_chaine = read(fd_pipe_from_service, &len, sizeof(int));
-    myassert(taille_chaine != sizeof(len), "Erreur : erreur de longueur de la chaîne.\n");
+    int taille_chaine_res = read(fd_pipe_from_service, &len, sizeof(int));
+    myassert(taille_chaine_res == sizeof(len), "Erreur : la chaîne résultat n'a pas été bien reçue.\n");
     
     char *chaine_res = (char *)malloc(sizeof(char) *(len + 1)); // +1 pour '\0'
     chaine_res[len] = '\0';
-    myassert(chaine_res == NULL, "Erreur : allocation mémoire échouée.\n");
+    myassert(chaine_res != NULL, "Erreur : allocation mémoire échouée.\n");
 
-    int chaine_lu = read(fd_pipe_from_service, chaine_res, sizeof(char) *len);
-    myassert(chaine_lu != len, "Erreur : problème dans la chaine reçue.\n");
+    int chaine_res_lue = read(fd_pipe_from_service, chaine_res, sizeof(char) *len);
+    myassert(chaine_res_lue == len, "Erreur : la chaine résultat n'a pas été bien reçue.\n");
 
     printf("Chaine du service reçue : %s\n", chaine_res);
     free(chaine_res);
@@ -100,7 +100,7 @@ void client_compression(int fd_pipe_to_service, int fd_pipe_from_service, int ar
     client_compression_verifArgs(argc, argv);
 
     const char *chaine = argv[2];
-    myassert(chaine[0] == '\0', "Erreur : la chaine à compresser est vide.\n");
+    myassert(chaine[0] != '\0', "Erreur : la chaine à compresser est vide.\n");
 
     sendData(fd_pipe_to_service, chaine);
     receiveResult(fd_pipe_from_service);

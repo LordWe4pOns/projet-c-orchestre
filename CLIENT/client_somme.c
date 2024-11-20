@@ -66,12 +66,13 @@ void client_somme_verifArgs(int argc, char * argv[])
 // - les deux float dont on veut la somme
 static void sendData(int fd_pipe_to_service, int int1, int int2)
 {
-    int somme = int1 + int2;
+    int envoi_int1 = write(fd_pipe_to_service, &int1, sizeof(int));
+    myassert(envoi_int1 == sizeof(int), "Erreur : le premier entier n'a pas été bien envoyé.\n");
 
-    int envoi_somme = write(fd_pipe_to_service, &somme, sizeof(int));
-    myassert(envoi_somme != sizeof(int), "Erreur : tous les octets n'ont pas été envoyés.\n");
+    int envoi_int2 = write(fd_pipe_to_service, &int2, sizeof(int));
+    myassert(envoi_int2 == sizeof(int), "Erreur : le second entier n'a pas été bien envoyé.\n");
 
-    printf("Données envoyées au service : %d\n", somme);
+    printf("Données envoyées au service : %d, %d\n", int1, int2);
 }
 
 // ---------------------------------------------
@@ -85,7 +86,7 @@ static void receiveResult(int fd_pipe_from_service, const char *prefixe)
     int somme_res;
 
     int somme_lue = read(fd_pipe_from_service, &somme_res, sizeof(int));
-    myassert(somme_lue != sizeof(int), "Erreur : problème dans la somme reçue.\n");
+    myassert(somme_lue == sizeof(int), "Erreur : la somme n'a pas été bien reçue.\n");
 
     printf("%s : %d\n", prefixe, somme_res);
 }
@@ -107,7 +108,7 @@ void client_somme(int fd_pipe_to_service, int fd_pipe_from_service, int argc, ch
     int int1 = atoi(argv[2]);
     int int2 = atoi(argv[3]);
     const char *prefixe = argv[4];
-    myassert(prefixe[0] == '\0', "Erreur : il n'y a pas de préfixe.\n");
+    myassert(prefixe[0] != '\0', "Erreur : il n'y a pas de préfixe.\n");
 
     sendData(fd_pipe_to_service, int1, int2);
     receiveResult(fd_pipe_from_service, prefixe);
