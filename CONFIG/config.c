@@ -17,49 +17,86 @@
  */
 
 
-// TODO include des .h système
+// TODO include des .h système*
+#include <stdio.h>
+#include <string.h>
 
 #include "myassert.h"
 
 #include "config.h"
 
 // TODO Définition des données ici
+bool init = false;
+int nb_serv;
+bool* open = NULL;
+char* name = NULL;
 
 
 void config_init(const char *filename)
 {
     // TODO erreur si la fonction est appelée deux fois
+    myassert(!init, "erreur : config_init est appelée deux fois\n");
 
     // TODO code vide par défaut, à remplacer
     //      il faut lire le fichier et stocker toutes les informations en
     //      mémoire
+    FILE * fd = fopen(filename, 'r');
+    myassert(fd != NULL, "echec de l'ouverture du config file\n");
+
+    size_t ret = fread(&nb_serv, sizeof(int), 1, fd);
+    myassert(ret == sizeof(int), "echec de la recuperetion du nombre de service dans le config file\n");
+
+    name = malloc(sizeof(char) * 50);
+    ret = fgets(name, 50, fd);
+    myassert(ret != NULL, "echec de la recuperation du nom de l'executable du service\n");
+
+    int numServ;
+    open = malloc(sizeof(bool) * nb_serv);
+    for (int i = 0; i < nb_serv; i++){
+        ret = fread(&numServ, sizeof(int), 1, fd);
+        myassert(ret == sizeof(int), "echec de la recuperation d'un numero de service\n");
+
+        char isOpen[7];
+        ret = fgets(isOpen, 7, fd);
+        myassert(ret != NULL, "echec de la recuperation de l'etat d'un des service\n");
+
+        char* tmp = "ouvert";
+        open[numServ] = strcmp(isOpen, tmp) == 0;
+    }
+    init = true;
 }
 
 void config_exit()
 {
     // TODO erreur si la fonction est appelée avant config_init
+    myassert(init, "erreur : config_exit appelee avant config_init\n");
 
     // TODO code vide par défaut, à remplacer
     //      libération des ressources
+    init = false;
+    free(open);
+    openArr = NULL;
+    free(name);
+    name = NULL;
 }
 
 int config_getNbServices()
 {
     // erreur si la fonction est appelée avant config_init
     // erreur si la fonction est appelée après config_exit
-    
-    // code par défaut, à remplacer
-    return 3;
+    myassert(init, "erreur : appel de la fonction config_getNbServices avant config_init ou apres config_exit\n");
+
+    return nb_serv;
 }
 
 const char * config_getExeName()
 {
     // TODO erreur si la fonction est appelée avant config_init
     // TODO erreur si la fonction est appelée après config_exit
+    myassert(init, "erreur : appel de la fonction config_getExeName avant config_init ou apres config_exit\n")
 
     // TODO code par défaut, à remplacer
-    const char * name = "SERVICE/service";
-    return name;
+    return (const char)name;
 }
 
 bool config_isServiceOpen(int pos)
@@ -67,8 +104,9 @@ bool config_isServiceOpen(int pos)
     // TODO erreur si la fonction est appelée avant config_init
     // TODO erreur si la fonction est appelée après config_exit
     // TODO erreur si "pos" est incorrect
+    myassert(init, "erreur : appel de la fonction config_isServiceOpen avant config_init ou apres config_exit\n")
+    myassert(pos >= 0 && pos < nb_serv, "erreur : pos doit etre compris entre 0 et nb_serv - 1\n");
 
     // TODO code par défaut, à remplacer
-    bool open[] = {true, false, true};
     return open[pos];
 }
