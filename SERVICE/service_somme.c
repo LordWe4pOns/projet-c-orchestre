@@ -26,13 +26,13 @@ static void receiveData(int fd_pipe_from_client, int *int1, int *int2)
     int int2_lu = read(fd_pipe_from_client, &int2, sizeof(int));
     myassert(int2_lu == sizeof(int), "Erreur : problème dans le second entier reçu.\n");
 
-    printf("Données reçues par le client : %d, %d\n", int1, int2);
+    printf("Données reçues par le client : %d, %d\n", *int1, *int2);
 }
 
 // fonction de traitement des données
 static void computeResult(int int1, int int2, int *somme)
 {
-    somme = int1 + int2;
+    *somme = int1 + int2;
 }
 
 // fonction d'envoi du résultat
@@ -41,7 +41,7 @@ static void sendResult(int fd_pipe_to_client, int somme)
     int envoi_somme = write(fd_pipe_to_client, &somme, sizeof(int));
     myassert(envoi_somme == sizeof(int), "Erreur : la somme n'a pas été bien envoyée.\n");
 
-    printf("Données renvoyées au client : %d\n", somme)
+    printf("Données renvoyées au client : %d\n", somme);
 }
 
 
