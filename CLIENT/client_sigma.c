@@ -53,7 +53,7 @@ void client_sigma_verifArgs(int argc, char * argv[])
             usage(argv[0], argv[1], "Ce n'est pas un tableau exclusivement de flottants.\n");
         }
     }
-} 
+}
 
 /*----------------------------------------------*
  * fonctions de communication avec le service
@@ -68,10 +68,13 @@ void client_sigma_verifArgs(int argc, char * argv[])
 static void sendData(int fd_pipe_to_service, int nb_threads, float *tab_float, int size)
 {
     int envoi_nb_threads = write(fd_pipe_to_service, &nb_threads, sizeof(nb_threads));
-    myassert(envoi_nb_threads != sizeof(nb_threads), "Erreur : tous les octets n'ont pas été envoyés.\n");
+    myassert(envoi_nb_threads == sizeof(nb_threads), "Erreur : tous les octets n'ont pas été envoyés.\n");
+
+    int envoi_size = write(fd_pipe_to_service, &size, sizeof(int));
+    myassert(envoi_size == sizeof(int), "erreur : echec de l'envoi de la taille du tableau\n");
 
     int envoi_tab = write(fd_pipe_to_service, tab_float, sizeof(float) * size);
-    myassert(envoi_tab != (int)sizeof(float) * size, "Erreur : le tableau ne s'est pas bien envoyé.\n");
+    myassert(envoi_tab == (int)sizeof(float) * size, "Erreur : le tableau ne s'est pas bien envoyé.\n");
 
     printf("Données envoyées au service : %d threads, %d valeurs.\n", nb_threads, size);
 }
@@ -86,7 +89,7 @@ static void receiveResult(int fd_pipe_from_service)
     float res;
 
     int res_lu = read(fd_pipe_from_service, &res, sizeof(res));
-    myassert(res_lu != sizeof(res), "Erreur : problème dans le résultat reçu.\n");
+    myassert(res_lu == sizeof(res), "Erreur : problème dans le résultat reçu.\n");
 
     printf("Résultat reçu du service : %f\n", res);
 }

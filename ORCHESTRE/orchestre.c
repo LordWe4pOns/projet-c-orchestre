@@ -104,7 +104,7 @@ int main(int argc, char * argv[])
     //creation semaphores orch<-->service
     key = ftok(ORCH_SERV, ORCH_SERV_KEY);
     myassert(key != -1, "echec de la creation de la cle pour le semaphore orch<-->serv\n");
-    int semOrchServ = semget(key, 3, IPC_CREAT | IPC_EXCL | 0641);
+    int semOrchServ = semget(key, config_getNbServices(), IPC_CREAT | IPC_EXCL | 0641);
     myassert(semOrchServ != -1, "echec de la creation du semaphore orch<-->serv\n");
     //initialisation sema orch<-->service
     ret = semctl(semOrchServ, 0, SETALL, 1);
@@ -115,7 +115,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la 1ere duplication de l'orchestre\n");
     if (ret == 0){
         char * servArgv[7];
-        servArgv[0] = "../SERVICE/service";
+        servArgv[0] = config_getExeName();
         sprintf(servArgv[1], "%d", SERVICE_SOMME);   //num service
         sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
         sprintf(servArgv[3], "%d", pipeOrchToServ0[0]);   //fd tube ano orch-->serv
@@ -133,7 +133,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la 2eme duplication de l'orchestre\n");
     if (ret == 0){
         char * servArgv[7];
-        servArgv[0] = "../SERVICE/service";
+        servArgv[0] = config_getExeName();
         sprintf(servArgv[1], "%d", SERVICE_COMPRESSION);   //num service
         sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
         sprintf(servArgv[3], "%d", pipeOrchToServ1[0]);   //fd tube ano orch-->serv
@@ -151,7 +151,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la 3eme duplication de l'orchestre\n");
     if (ret == 0){
         char * servArgv[7];
-        servArgv[0] = "../SERVICE/service";
+        servArgv[0] = config_getExeName();
         sprintf(servArgv[1], "%d", SERVICE_SIGMA);   //num service
         sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
         sprintf(servArgv[3], "%d", pipeOrchToServ2[0]);   //fd tube ano orch-->serv
@@ -183,7 +183,7 @@ int main(int argc, char * argv[])
         // les sémaphores dédiés (attention on n'attend pas la
         // fin des traitement, on note juste ceux qui sont finis)
         bool serv0, serv1, serv2;
-        
+
         ret = semctl(semOrchServ, 0, GETVAL);
         myassert(ret != -1, "echec de la recuperation de la valeur du semaphore semOrchServ[0]\n");
         serv0 = ret == 1;
@@ -217,21 +217,21 @@ int main(int argc, char * argv[])
                 fin = true;
                 break;
             case SERVICE_SOMME :
-                if (serv0){
+                if (serv0 && config_isServiceOpen(SERVICE_SOMME)){
                     send = VALIDATION_CODE;
                 } else {
                     send = ERROR_CODE;
                 }
                 break;
             case SERVICE_COMPRESSION :
-                if (serv1){
+                if (serv1 && config_isServiceOpen(SERVICE_COMPRESSION)){
                     send = VALIDATION_CODE;
                 } else {
                     send = ERROR_CODE;
                 }
                 break;
             case SERVICE_SIGMA :
-                if (serv2){
+                if (serv2 && config_isServiceOpen(SERVICE_SIGMA)){
                     send = VALIDATION_CODE;
                 } else {
                     send = ERROR_CODE;

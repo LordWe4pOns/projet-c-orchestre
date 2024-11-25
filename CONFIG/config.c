@@ -66,6 +66,8 @@ void config_init(const char *filename)
         char* tmp = "ouvert";
         open[numServ] = strcmp(isOpen, tmp) == 0;
     }
+    ret = fclose(fd);
+    myassert(ret == 0, "echec de la fermeture du fd config\n");
     init = true;
 }
 
