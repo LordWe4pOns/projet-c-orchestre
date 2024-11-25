@@ -37,9 +37,9 @@ int main(int argc, char * argv[])
 
     // lecture du fichier de configuration
     config_init(argv[1]);
-    //const char* temp_name = config_getExeName();
     char* name = malloc(sizeof(char) * strlen(config_getExeName()) + 1);
     strcpy(name, config_getExeName());
+    int nb_serv = config_getNbServices();
 
     // Pour la communication avec les clients
     // - création de 2 tubes nommés pour converser avec les clients
@@ -112,10 +112,12 @@ int main(int argc, char * argv[])
     //creation semaphores orch<-->service
     key = ftok(ORCH_SERV, ORCH_SERV_KEY);
     myassert(key != -1, "echec de la creation de la cle pour le semaphore orch<-->serv\n");
-    int semOrchServ = semget(key, config_getNbServices(), IPC_CREAT | IPC_EXCL | 0641);
+    int semOrchServ = semget(key, nb_serv, IPC_CREAT | IPC_EXCL | 0641);
     myassert(semOrchServ != -1, "echec de la creation du semaphore orch<-->serv\n");
     //initialisation sema orch<-->service
-    ret = semctl(semOrchServ, 0, SETALL, 1);
+    for (int i = 0; i < nb_serv; i++){
+        ret = semctl(semOrchServ, i, SETVAL, 1);
+    }
     myassert(ret != -1, "echec de l'iniitialisation du semaphore semOrchServ\n");
 
     //service 0 : somme
