@@ -5,9 +5,6 @@
 // - le tube anonyme pour que l'orchestre envoie des données au service
 // - le sémaphore pour que  le service indique à l'orchestre la fin
 //   d'un traitement
-int pipeOrchToServ0[2];     //orch-->service somme
-int pipeOrchToServ1[2];     //orch-->service compression
-int pipeOrchToServ2[2];     //orch-->service sigma
 
 #define ORCH_SERV "../ORCHESTRE_SERVICE/orchestre_service.h"
 

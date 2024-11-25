@@ -18,6 +18,7 @@
 //
 // Les positions commencent à 0
 
+
 void config_init(const char *filename);
 void config_exit();
 

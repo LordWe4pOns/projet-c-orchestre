@@ -37,6 +37,9 @@ int main(int argc, char * argv[])
 
     // lecture du fichier de configuration
     config_init(argv[1]);
+    const char* temp_name = config_getExeName();
+    char* name = malloc(sizeof(char) * strlen(temp_name) + 1);
+    strcpy(name, temp_name);
 
     // Pour la communication avec les clients
     // - création de 2 tubes nommés pour converser avec les clients
@@ -74,6 +77,11 @@ int main(int argc, char * argv[])
     //   fin d'un traitement
     // - création de deux tubes nommés (pour chaque service) pour les
     //   communications entre les clients et les services
+
+    
+    int pipeOrchToServ0[2];     //orch-->service somme
+    int pipeOrchToServ1[2];     //orch-->service compression
+    int pipeOrchToServ2[2];     //orch-->service sigma
 
     //creation pipe orch<-->service somme
     ret = pipe(pipeOrchToServ0);
@@ -115,7 +123,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la 1ere duplication de l'orchestre\n");
     if (ret == 0){
         char * servArgv[7];
-        servArgv[0] = config_getExeName();
+        servArgv[0] = name;
         sprintf(servArgv[1], "%d", SERVICE_SOMME);   //num service
         sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
         sprintf(servArgv[3], "%d", pipeOrchToServ0[0]);   //fd tube ano orch-->serv
@@ -133,7 +141,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la 2eme duplication de l'orchestre\n");
     if (ret == 0){
         char * servArgv[7];
-        servArgv[0] = config_getExeName();
+        servArgv[0] = name;
         sprintf(servArgv[1], "%d", SERVICE_COMPRESSION);   //num service
         sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
         sprintf(servArgv[3], "%d", pipeOrchToServ1[0]);   //fd tube ano orch-->serv
@@ -151,7 +159,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la 3eme duplication de l'orchestre\n");
     if (ret == 0){
         char * servArgv[7];
-        servArgv[0] = config_getExeName();
+        servArgv[0] = name;
         sprintf(servArgv[1], "%d", SERVICE_SIGMA);   //num service
         sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
         sprintf(servArgv[3], "%d", pipeOrchToServ2[0]);   //fd tube ano orch-->serv
