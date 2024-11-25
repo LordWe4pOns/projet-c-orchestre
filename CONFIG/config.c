@@ -46,8 +46,8 @@ void config_init(const char *filename)
     FILE * fd = fopen(filename, "r");
     myassert(fd != NULL, "echec de l'ouverture du config file\n");
 
-    size_t ret = fread(&nb_serv, sizeof(int), 1, fd);
-    myassert(ret == sizeof(int), "echec de la recuperetion du nombre de service dans le config file\n");
+    size_t ret = fscanf(fd, "%d\n", &nb_serv);
+    myassert(ret == 1, "echec de la recuperetion du nombre de service dans le config file\n");
 
     name = malloc(sizeof(char) * 50);
     fgets(name, 50, fd);
@@ -55,14 +55,13 @@ void config_init(const char *filename)
     int numServ;
     open = malloc(sizeof(bool) * nb_serv);
     for (int i = 0; i < nb_serv; i++){
-        ret = fread(&numServ, sizeof(int), 1, fd);
-        myassert(ret == sizeof(int), "echec de la recuperation d'un numero de service\n");
+        ret = fscanf(fd, "%d ", &numServ);
+        myassert(ret == 1, "echec de la recuperation d'un numero de service\n");
 
         char isOpen[7];
         fgets(isOpen, 7, fd);
 
-        char* tmp = "ouvert";
-        open[numServ] = strcmp(isOpen, tmp) == 0;
+        open[numServ] = strcmp(isOpen, "ouvert") == 0;
     }
     ret = fclose(fd);
     myassert(ret == 0, "echec de la fermeture du fd config\n");

@@ -37,9 +37,9 @@ int main(int argc, char * argv[])
 
     // lecture du fichier de configuration
     config_init(argv[1]);
-    const char* temp_name = config_getExeName();
-    char* name = malloc(sizeof(char) * strlen(temp_name) + 1);
-    strcpy(name, temp_name);
+    //const char* temp_name = config_getExeName();
+    char* name = malloc(sizeof(char) * strlen(config_getExeName()) + 1);
+    strcpy(name, config_getExeName());
 
     // Pour la communication avec les clients
     // - création de 2 tubes nommés pour converser avec les clients
@@ -330,13 +330,33 @@ int main(int argc, char * argv[])
     }
 
     // libération des ressources
+    free(name);
+
     ret = unlink(ORCH_TO_CLIENT);   //destruction du tube orch->client
     myassert(ret != -1, "echec de la destruction du tube orch->client\n");
     ret = unlink(CLIENT_TO_ORCH);   //destruction du tube client->orch
     myassert(ret != -1, "echec de la destruction du tube client->orch\n");
+    ret = unlink(CLIENT_TO_SERV_SUM);
+    myassert(ret != -1, "echec de la destruction du tube client->serv_sum\n");
+    ret = unlink(SERV_SUM_TO_CLIENT);
+    myassert(ret != -1, "echec de la destruction du tube serv_sum->client\n");
+    ret = unlink(CLIENT_TO_SERV_COMP);
+    myassert(ret != -1, "echec de la destruction du tube client->serv_comp\n");
+    ret = unlink(SERV_COMP_TO_CLIENT);
+    myassert(ret != -1, "echec de la destruction du tube serv_comp->client\n");
+    ret = unlink(CLIENT_TO_SERV_SIG);
+    myassert(ret != -1, "echec de la destruction du tube client->serv_sig\n");
+    ret = unlink(SERV_SIG_TO_CLIENT);
+    myassert(ret != -1, "echec de la destruction du tube serv_sig->client\n");
 
     ret = semctl(semClientOrch, -1, IPC_RMID);
     myassert(ret != -1, "echec de la destruction du semaphore client<-->orch\n");
+    
+    ret = semctl(ClientDone, -1, IPC_RMID);
+    myassert(ret != -1, "echec de la destruction du semaphore client<-->client\n");
+    
+    ret = semctl(semOrchServ, -1, IPC_RMID);
+    myassert(ret != -1, "echec de la destruction du semaphore orch<-->serv\n");
 
     return EXIT_SUCCESS;
 }

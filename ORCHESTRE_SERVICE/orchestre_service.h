@@ -6,7 +6,7 @@
 // - le sémaphore pour que  le service indique à l'orchestre la fin
 //   d'un traitement
 
-#define ORCH_SERV "../ORCHESTRE_SERVICE/orchestre_service.h"
+#define ORCH_SERV "ORCHESTRE_SERVICE/orchestre_service.h"
 
 #define ORCH_SERV_KEY 1337
 
