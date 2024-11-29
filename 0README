@@ -48,3 +48,16 @@ si vous utilisez la fonction strdup, il faut mettre la ligne suite en tête
 du fichier .c :
     #define _POSIX_C_SOURCE 200809L
 
+
+Modification des droits :
+
+chmod u+x clean.sh ; chmod u+x CLIENT/clean.sh ; chmod u+x ORCHESTRE/clean
+.sh ; chmod u+x SERVICE/clean.sh
+
+chmod u+x compil.sh ; chmod u+x CLIENT/compil.sh ; chmod u+x ORCHESTRE/compil
+.sh ; chmod u+x SERVICE/compil.sh
+
+chmod u+x UTILS/rmsem.sh
+
+Lancement de l'orchestre :
+rm pipe* ; ./UTILS/rmsem.sh ; ORCHESTRE/orchestre CONFIG/config.txt
