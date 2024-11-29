@@ -31,7 +31,7 @@
 // TODO Définition des données ici
 bool init = false;
 int nb_serv;
-bool* open = NULL;
+bool* openArr = NULL;
 char* name = NULL;
 
 
@@ -51,9 +51,12 @@ void config_init(const char *filename)
 
     name = malloc(sizeof(char) * 50);
     fgets(name, 50, fd);
+    int len = strlen(name);
+    name = realloc(name, sizeof(char) * len + 1);
+    name[len - 1] = '\0';
 
     int numServ;
-    open = malloc(sizeof(bool) * nb_serv);
+    openArr = malloc(sizeof(bool) * nb_serv);
     for (int i = 0; i < nb_serv; i++){
         ret = fscanf(fd, "%d ", &numServ);
         myassert(ret == 1, "echec de la recuperation d'un numero de service\n");
@@ -61,7 +64,7 @@ void config_init(const char *filename)
         char isOpen[7];
         fgets(isOpen, 7, fd);
 
-        open[numServ] = strcmp(isOpen, "ouvert") == 0;
+        openArr[numServ] = strcmp(isOpen, "ouvert") == 0;
     }
     ret = fclose(fd);
     myassert(ret == 0, "echec de la fermeture du fd config\n");
@@ -76,8 +79,8 @@ void config_exit()
     // TODO code vide par défaut, à remplacer
     //      libération des ressources
     init = false;
-    free(open);
-    open = NULL;
+    free(openArr);
+    openArr = NULL;
     free(name);
     name = NULL;
 }
@@ -110,5 +113,5 @@ bool config_isServiceOpen(int pos)
     myassert(pos >= 0 && pos < nb_serv, "erreur : pos doit etre compris entre 0 et nb_serv - 1\n");
 
     // TODO code par défaut, à remplacer
-    return open[pos];
+    return openArr[pos];
 }

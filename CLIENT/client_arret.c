@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #include "client_arret.h"
+#include "../UTILS/io.h"
 
 
 /*----------------------------------------------*
@@ -28,6 +29,6 @@ void client_arret_verifArgs(int argc, char * argv[])
 {
     if (argc != 2)
         usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
-    if (argv[1][0] != -1)
+    if (io_strToInt(argv[1]) != -1)
         usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n");
 }

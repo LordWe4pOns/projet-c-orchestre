@@ -81,10 +81,10 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
 
     // ouverture des tubes avec l'orchestre
-    int pipeOrchToClient = open(ORCH_TO_CLIENT, 'r');
+    int pipeOrchToClient = open(ORCH_TO_CLIENT, O_RDONLY);
     myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en lecture\n");
 
-    int pipeClientToOrch = open(CLIENT_TO_ORCH, 'w');
+    int pipeClientToOrch = open(CLIENT_TO_ORCH, O_WRONLY);
     myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en ecriture\n");
 
 
@@ -131,7 +131,8 @@ int main(int argc, char * argv[])
     //     fermeture des tubes avec le service
     // finsi
     int password;
-    char tubeC2S[SIZE_FD + 1], tubeS2C[SIZE_FD + 1];
+    char* tubeC2S = NULL; 
+    char* tubeS2C = NULL;
     if (retCode == ERROR_CODE){
         printf("Erreur : service non disponible\n");
     } else {
@@ -140,12 +141,20 @@ int main(int argc, char * argv[])
         } else {
             ret = read(pipeOrchToClient, &password, sizeof(int));
             myassert(ret != -1, "echec de la reception du mot de passe\n");
-            ret = read(pipeOrchToClient, &tubeC2S, sizeof(char) * SIZE_FD);
+
+            int len;
+
+            read(pipeOrchToClient, &len, sizeof(int));
+            tubeC2S = malloc(sizeof(char) * len + 1);
+            ret = read(pipeOrchToClient, &tubeC2S, sizeof(char) * len);
             myassert(ret != -1, "echec de la reception du tube client-->serv\n");
-            ret = read(pipeOrchToClient, &tubeS2C, sizeof(char) * SIZE_FD);
+            tubeC2S[len] = '\0';
+
+            read(pipeOrchToClient, &len, sizeof(int));
+            tubeS2C = malloc(sizeof(char) * len + 1);
+            ret = read(pipeOrchToClient, &tubeS2C, sizeof(char) * len);
             myassert(ret != -1, "echec de la reception du tube client<--serv\n");
-            tubeC2S[SIZE_FD] = '\0';
-            tubeS2C[SIZE_FD] = '\0';
+            tubeS2C[len] = '\0';
         }
     }
 
@@ -192,9 +201,11 @@ int main(int argc, char * argv[])
         myassert(ret != -1, "echec de la fermeture du tube pipeClientToServ\n");
     }
     
-    
-
     // libération éventuelle de ressources
+    if (tubeC2S != NULL){   //si l'un des deux est alloué, l'autre aussi logiquement
+        free(tubeC2S);
+        free(tubeS2C);
+    }
 
     return EXIT_SUCCESS;
 }

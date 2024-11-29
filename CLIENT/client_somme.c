@@ -44,7 +44,7 @@ void client_somme_verifArgs(int argc, char * argv[])
 
     if (argc != 5)
         usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
-    if (argv[1][0] != 0)
+    if (argv[1][0] != '0')
         usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n" );
     if (strcmp(argv[2], tabArg2))
         usage(argv[0], argv[1],"Le deuxième paramètre doit être un entier.\n" );

@@ -37,6 +37,7 @@ static void usage(const char *exeName, const char *message)
  *----------------------------------------------*/
 int main(int argc, char * argv[])
 {
+    sleep(10);
     if (argc != 6)
         usage(argv[0], "nombre paramètres incorrect");
 
@@ -49,10 +50,13 @@ int main(int argc, char * argv[])
     myassert(semOrchServ != -1, "echec de la recuperation du sema serv<-->orch\n");
 
     int pipeFromOrch = atoi(argv[3]);     //fd orch-->serv
+    printf("recup cle fd orch-->serv OK dans serv %d\n", servNum);
 
     char* servToClient = argv[4];
+    printf("recup cle fd serv-->client OK dans serv %d\n", servNum);
 
     char* clientToServ = argv[5];
+    printf("recup cle fd client-->serv OK dans serv %d\n", servNum);
 
     int ret;
     bool fin = false;

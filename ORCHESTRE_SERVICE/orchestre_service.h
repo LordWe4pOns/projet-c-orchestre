@@ -8,6 +8,6 @@
 
 #define ORCH_SERV "ORCHESTRE_SERVICE/orchestre_service.h"
 
-#define ORCH_SERV_KEY 1337
+#define ORCH_SERV_KEY 40
 
 #endif

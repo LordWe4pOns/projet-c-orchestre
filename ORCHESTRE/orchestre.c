@@ -16,8 +16,39 @@
 #include "../ORCHESTRE_SERVICE/orchestre_service.h"
 #include "../SERVICE/service.h"
 #include "../UTILS/myassert.h"
+#include "../UTILS/io.h"
 
 #include "../CLIENT_SERVICE/client_service.h"
+
+#define NB_SERV_DIF 3    //puisqu'il n'y a que 3 services differents
+
+char*** pipesClientServNames = NULL;
+
+void init_pipeClientServNames(){
+    myassert(pipesClientServNames == NULL, "Erreur : pipesClientServNames deja initialisé");
+    pipesClientServNames = malloc(sizeof(char**) * NB_SERV_DIF);
+    for (int i = 0; i < NB_SERV_DIF; i++){
+        pipesClientServNames[i] = malloc(sizeof(char*) * 2);
+    }
+    pipesClientServNames[0][0] = CLIENT_TO_SERV_SUM;
+    pipesClientServNames[0][1] = SERV_SUM_TO_CLIENT;
+    pipesClientServNames[1][0] = CLIENT_TO_SERV_COMP;
+    pipesClientServNames[1][1] = SERV_COMP_TO_CLIENT;
+    pipesClientServNames[2][0] = CLIENT_TO_SERV_SIG;
+    pipesClientServNames[2][1] = SERV_SIG_TO_CLIENT;
+}
+
+void destroy_pipesClientServNames(){
+    myassert(pipesClientServNames != NULL, "Erreur : pipesClientServNames n'est pas initialisé");
+    for (int i = 0; i < NB_SERV_DIF; i++){
+        free(pipesClientServNames[i][0]);
+        free(pipesClientServNames[i][1]);
+        free(pipesClientServNames[i]);
+    }
+    free(pipesClientServNames);
+    pipesClientServNames = NULL;
+}
+
 
 
 static void usage(const char *exeName, const char *message)
@@ -35,11 +66,15 @@ int main(int argc, char * argv[])
 
     bool fin = false;
 
+    // init des noms des fifo client<-->serv
+    init_pipeClientServNames();
+
     // lecture du fichier de configuration
     config_init(argv[1]);
     char* name = malloc(sizeof(char) * strlen(config_getExeName()) + 1);
     strcpy(name, config_getExeName());
     int nb_serv = config_getNbServices();
+    myassert(nb_serv <= 3, "Erreur : il n'existe (pour l'instant) que 3 services");
 
     // Pour la communication avec les clients
     // - création de 2 tubes nommés pour converser avec les clients
@@ -79,35 +114,23 @@ int main(int argc, char * argv[])
     //   communications entre les clients et les services
 
     
-    int pipeOrchToServ0[2];     //orch-->service somme
-    int pipeOrchToServ1[2];     //orch-->service compression
-    int pipeOrchToServ2[2];     //orch-->service sigma
+    int pipesOrchToServ[nb_serv][2];     //orch-->services
 
-    //creation pipe orch<-->service somme
-    ret = pipe(pipeOrchToServ0);
-    myassert(ret == 0, "echec de la creation du tube anonyme vers le service somme\n");
-    //creation pipe orch<-->service compression
-    ret = pipe(pipeOrchToServ1);
-    myassert(ret == 0, "echec de la creation du tube anonyme vers le service compression\n");
-    //creation pipe orch<-->service sigma
-    ret = pipe(pipeOrchToServ2);
-    myassert(ret == 0, "echec de la creation du tube anonyme vers le service sigma\n");
+    //creation pipe orch<-->service 
+    for (int i = 0; i < nb_serv; i++){
+        ret = pipe(pipesOrchToServ[i]);
+        myassert(ret == 0, "echec de la creation du tube anonyme vers un service\n");
+    }
+    printf("Creation pipe orch<-->service OK\n");
 
-    //creation tubes client<-->service_somme
-    ret = mkfifo(CLIENT_TO_SERV_SUM, 0644);
-    myassert(ret == 0, "echec de la creation du tube client-->service_somme\n");
-    ret = mkfifo(SERV_SUM_TO_CLIENT, 0644);
-    myassert(ret == 0, "echec de la creation du tube client<--service_somme\n");
-    //creation tubes client<-->service_compression
-    ret = mkfifo(CLIENT_TO_SERV_COMP, 0644);
-    myassert(ret == 0, "echec de la creation du tube client-->service_compression\n");
-    ret = mkfifo(SERV_COMP_TO_CLIENT, 0644);
-    myassert(ret == 0, "echec de la creation du tube client<--service_compression\n");
-    //creation tubes client<-->service_sigma
-    ret = mkfifo(CLIENT_TO_SERV_SIG, 0644);
-    myassert(ret == 0, "echec de la creation du tube client-->service_sigma\n");
-    ret = mkfifo(SERV_SIG_TO_CLIENT, 0644);
-    myassert(ret == 0, "echec de la creation du tube client<--service_sigma\n");
+    //creation tubes client<-->service
+    for (int i = 0; i < nb_serv; i++){
+        ret = mkfifo(pipesClientServNames[i][0], 0644);
+        myassert(ret == 0, "echec de la creation d'un tube client-->service\n");
+        ret = mkfifo(pipesClientServNames[i][1], 0644);
+        myassert(ret == 0, "echec de la creation d'un tube client<--service\n");
+    }
+    printf("Creation tubes client<-->service OK\n");
 
     //creation semaphores orch<-->service
     key = ftok(ORCH_SERV, ORCH_SERV_KEY);
@@ -117,92 +140,72 @@ int main(int argc, char * argv[])
     //initialisation sema orch<-->service
     for (int i = 0; i < nb_serv; i++){
         ret = semctl(semOrchServ, i, SETVAL, 1);
+        myassert(ret != -1, "echec de l'iniitialisation du semaphore semOrchServ\n");
     }
-    myassert(ret != -1, "echec de l'iniitialisation du semaphore semOrchServ\n");
+    printf("Creation et init sema orch<-->service OK\n");
 
-    //service 0 : somme
-    ret = fork();
-    myassert(ret != -1, "echec de la 1ere duplication de l'orchestre\n");
-    if (ret == 0){
+    //lancement des services
+    for (int i = 0; i < nb_serv; i++){
+        ret = fork();
+        myassert(ret != -1, "echec de la 1ere duplication de l'orchestre\n");
         char * servArgv[7];
-        servArgv[0] = name;
-        sprintf(servArgv[1], "%d", SERVICE_SOMME);   //num service
-        sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
-        sprintf(servArgv[3], "%d", pipeOrchToServ0[0]);   //fd tube ano orch-->serv
-        servArgv[4] = SERV_SUM_TO_CLIENT;   //mkfifo serv-->client
-        servArgv[5] = CLIENT_TO_SERV_SUM;   //mkfifo client-->serv
+        servArgv[0] = NULL;
+        servArgv[1] = NULL;   //num service
+        servArgv[2] = NULL;   //cle sema serv<-->orch
+        servArgv[3] = NULL;   //fd tube ano orch-->serv
+        servArgv[4] = NULL;   //nom pour mkfifo serv-->client
+        servArgv[5] = NULL;   //nom pour mkfifo client-->serv
         servArgv[6] = NULL;
-        execv(servArgv[0], servArgv);
-        myassert(false, "erreur : retour dans orchestre apres execv(service somme)\n");
+        if (ret == 0){
+            servArgv[0] = name;
+            servArgv[1] = io_intToStr(i);   //num service
+            servArgv[2] = io_intToStr(ORCH_SERV_KEY);   //cle sema serv<-->orch
+            servArgv[3] = io_intToStr(pipesOrchToServ[i][0]);   //fd tube ano orch-->serv
+            servArgv[4] = pipesClientServNames[i][1];   //nom pour mkfifo serv-->client
+            servArgv[5] = pipesClientServNames[i][0];   //nom pour mkfifo client-->serv
+            servArgv[6] = NULL;
+            execv(servArgv[0], servArgv);
+            myassert(false, "erreur : retour dans orchestre apres execv()\n");
+        }
+        ret = close(pipesOrchToServ[i][0]);    //fermeture entree lecture
+        myassert(ret == 0, "echec de la fermeture de l'entree lecture de pipeOrchToServ\n");
+        for (int i = 0; i < 4; i++)
+            free(servArgv[i]);
+        printf("Lancement du service %d OK\n", i);
     }
-    ret = close(pipeOrchToServ0[0]);    //fermeture entree lecture
-    myassert(ret == 0, "echec de la fermeture de l'entree lecture de pipeOrchToServ0\n");
-
-    //service 1 : compression
-    ret = fork();
-    myassert(ret != -1, "echec de la 2eme duplication de l'orchestre\n");
-    if (ret == 0){
-        char * servArgv[7];
-        servArgv[0] = name;
-        sprintf(servArgv[1], "%d", SERVICE_COMPRESSION);   //num service
-        sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
-        sprintf(servArgv[3], "%d", pipeOrchToServ1[0]);   //fd tube ano orch-->serv
-        servArgv[4] = SERV_COMP_TO_CLIENT;   //mkfifo serv-->client
-        servArgv[5] = CLIENT_TO_SERV_COMP;   //mkfifo client-->serv
-        servArgv[6] = NULL;
-        execv(servArgv[0], servArgv);
-        myassert(false, "erreur : retour dans orchestre apres execv(service compression)\n");
-    }
-    ret = close(pipeOrchToServ1[0]);    //fermeture entree lecture
-    myassert(ret == 0, "echec de la fermeture de l'entree lecture de pipeOrchToServ0\n");
-
-    //service 2 : sigma
-    ret = fork();
-    myassert(ret != -1, "echec de la 3eme duplication de l'orchestre\n");
-    if (ret == 0){
-        char * servArgv[7];
-        servArgv[0] = name;
-        sprintf(servArgv[1], "%d", SERVICE_SIGMA);   //num service
-        sprintf(servArgv[2], "%d", ORCH_SERV_KEY);   //cle sema serv<-->orch
-        sprintf(servArgv[3], "%d", pipeOrchToServ2[0]);   //fd tube ano orch-->serv
-        servArgv[4] = SERV_SIG_TO_CLIENT;   //mkfifo serv-->client
-        servArgv[5] = CLIENT_TO_SERV_SIG;   //mkfifo client-->serv
-        servArgv[6] = NULL;
-        execv(servArgv[0], servArgv);
-        myassert(false, "erreur : retour dans orchestre apres execv(service sigma)\n");
-    }
-    ret = close(pipeOrchToServ2[0]);    //fermeture entree lecture
-    myassert(ret == 0, "echec de la fermeture de l'entree lecture de pipeOrchToServ0\n");
+    printf("Lancement des services OK\n");
 
     while (! fin)
     {
         // ouverture ici des tubes nommés avec un client
         // attente d'une demande de service du client
-        int pipeOrchToClient = open(ORCH_TO_CLIENT, 'w');
-        myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en ecriture\n");
+        printf("Entrée dans la boucle de l'orch OK\n");
 
-        int pipeClientToOrch = open(CLIENT_TO_ORCH, 'r');
+        int pipeOrchToClient = open(ORCH_TO_CLIENT, O_WRONLY);
+        myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en ecriture\n");
+        printf("Ouverture pipeOrchToClient OK\n");
+
+        int pipeClientToOrch = open(CLIENT_TO_ORCH, O_RDONLY);
         myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en lecture\n");
+        printf("Ouverture pipeClientToOrch OK\n");
 
         int serv;
         ret = read(pipeClientToOrch, &serv, sizeof(int));
         myassert(ret != 0, "echec de la lecture de la demande de service dans le tube pipeClientToOrch\n");
         myassert(ret == sizeof(int), "erreur dans la lecture de la demande de service\n");
+        printf("Pas de client, on n'est pas censé arriver ici pour l'instant...\n");
 
         // détecter la fin des traitements lancés précédemment via
         // les sémaphores dédiés (attention on n'attend pas la
         // fin des traitement, on note juste ceux qui sont finis)
-        bool serv0, serv1, serv2;
+        bool servDone[nb_serv];
 
-        ret = semctl(semOrchServ, 0, GETVAL);
-        myassert(ret != -1, "echec de la recuperation de la valeur du semaphore semOrchServ[0]\n");
-        serv0 = ret == 1;
-        ret = semctl(semOrchServ, 1, GETVAL);
-        myassert(ret != -1, "echec de la recuperation de la valeur du semaphore semOrchServ[1]\n");
-        serv1 = ret == 1;
-        ret = semctl(semOrchServ, 2, GETVAL);
-        myassert(ret != -1, "echec de la recuperation de la valeur du semaphore semOrchServ[2]\n");
-        serv2 = ret == 1;
+        for (int i = 0; i < nb_serv; i++){
+            ret = semctl(semOrchServ, i, GETVAL);
+            myassert(ret != -1, "echec de la recuperation de la valeur du semaphore semOrchServ\n");
+            servDone[i] = ret == 1;
+        }
+        printf("recup etat des services OK\n");
 
         // analyse de la demande du client
         // si ordre de fin
@@ -227,21 +230,21 @@ int main(int argc, char * argv[])
                 fin = true;
                 break;
             case SERVICE_SOMME :
-                if (serv0 && config_isServiceOpen(SERVICE_SOMME)){
+                if (servDone[SERVICE_SOMME] && config_isServiceOpen(SERVICE_SOMME)){
                     send = VALIDATION_CODE;
                 } else {
                     send = ERROR_CODE;
                 }
                 break;
             case SERVICE_COMPRESSION :
-                if (serv1 && config_isServiceOpen(SERVICE_COMPRESSION)){
+                if (servDone[SERVICE_COMPRESSION] && config_isServiceOpen(SERVICE_COMPRESSION)){
                     send = VALIDATION_CODE;
                 } else {
                     send = ERROR_CODE;
                 }
                 break;
             case SERVICE_SIGMA :
-                if (serv2 && config_isServiceOpen(SERVICE_SIGMA)){
+                if (servDone[SERVICE_SIGMA] && config_isServiceOpen(SERVICE_SIGMA)){
                     send = VALIDATION_CODE;
                 } else {
                     send = ERROR_CODE;
@@ -251,42 +254,30 @@ int main(int argc, char * argv[])
         }
         ret = write(pipeOrchToClient, &send, sizeof(int));
         myassert(ret != -1, "echec de l'envoi du code au client\n");
+        printf("envoi code service OK\n");
 
         if (send == VALIDATION_CODE){
             int password = rand();
-            char tubeC2S[SIZE_FD + 1], tubeS2C[SIZE_FD + 1];
-            switch (serv){
-                case SERVICE_SOMME :
-                    ret = write(pipeOrchToServ0[1], &serv, sizeof(int));
-                    myassert(ret != -1, "echec de l'envoi du code de travail au serv0\n");
-                    ret = write(pipeOrchToServ0[1], &password, sizeof(int));
-                    myassert(ret != -1, "echec de l'envoi du mot de passe\n");
-                    strcpy(tubeC2S, CLIENT_TO_SERV_SUM);
-                    strcpy(tubeS2C, SERV_SUM_TO_CLIENT);
-                    break;
-                case SERVICE_COMPRESSION :
-                    ret = write(pipeOrchToServ1[1], &serv, sizeof(int));
-                    myassert(ret != -1, "echec de l'envoi du code de travail au serv1\n");
-                    ret = write(pipeOrchToServ1[1], &password, sizeof(int));
-                    myassert(ret != -1, "echec de l'envoi du mot de passe\n");
-                    strcpy(tubeC2S, CLIENT_TO_SERV_COMP);
-                    strcpy(tubeS2C, SERV_COMP_TO_CLIENT);
-                    break;
-                case SERVICE_SIGMA :
-                    ret = write(pipeOrchToServ2[1], &serv, sizeof(int));
-                    myassert(ret != -1, "echec de l'envoi du code de travail au serv2\n");
-                    ret = write(pipeOrchToServ2[1], &password, sizeof(int));
-                    myassert(ret != -1, "echec de l'envoi du mot de passe\n");
-                    strcpy(tubeC2S, CLIENT_TO_SERV_SIG);
-                    strcpy(tubeS2C, SERV_SIG_TO_CLIENT);
-                    break;
-                default : myassert(false, "erreur : numero de service incorrect\n");
-            }
+            ret = write(pipesOrchToServ[serv][1], &serv, sizeof(int));
+            myassert(ret != -1, "echec de l'envoi du code de travail\n");
+            ret = write(pipesOrchToServ[serv][1], &password, sizeof(int));
+            myassert(ret != -1, "echec de l'envoi du mot de passe\n");
+
             ret = write(pipeOrchToClient, &password, sizeof(int));
             myassert(ret != -1, "echec de l'envoi du mot de passe au client\n");
-            ret = write(pipeOrchToClient, &tubeC2S, sizeof(char) * SIZE_FD);
+
+            int len = strlen(pipesClientServNames[serv][0]);
+
+            ret = write(pipeOrchToClient, &len, sizeof(int));
+            myassert(ret != -1, "echec de l'envoi de la taille du nom du tube");
+            ret = write(pipeOrchToClient, &(pipesClientServNames[serv][0]), sizeof(char) * len);
             myassert(ret != -1, "echec de l'envoi du tube client-->serv\n");
-            ret = write(pipeOrchToClient, &tubeS2C, sizeof(char) * SIZE_FD);
+
+            len = strlen(pipesClientServNames[serv][0]);
+
+            ret = write(pipeOrchToClient, &len, sizeof(int));
+            myassert(ret != -1, "echec de l'envoi de la taille du nom du tube");
+            ret = write(pipeOrchToClient, &(pipesClientServNames[serv][1]), sizeof(char) * len);
             myassert(ret != -1, "echec de l'envoi du tube client<--serv\n");
         }
 
@@ -319,12 +310,10 @@ int main(int argc, char * argv[])
 
     // envoi à chaque service d'un code de fin
     int end = SERVICE_ARRET;
-    ret = write(pipeOrchToServ0[1], &end, sizeof(int));
-    myassert(ret != -1, "echec de l'envoi du code de fin au serv0\n");
-    ret = write(pipeOrchToServ1[1], &end, sizeof(int));
-    myassert(ret != -1, "echec de l'envoi du code de fin au serv1\n");
-    ret = write(pipeOrchToServ2[1], &end, sizeof(int));
-    myassert(ret != -1, "echec de l'envoi du code de fin au serv2\n");
+    for (int i = 0; i < nb_serv; i++){
+        ret = write(pipesOrchToServ[i][1], &end, sizeof(int));
+        myassert(ret != -1, "echec de l'envoi du code de fin a un des serv\n");
+    }
 
     // attente de la terminaison des processus services
     for (int i = 0; i < SERVICE_NB; i++){
@@ -359,6 +348,8 @@ int main(int argc, char * argv[])
     
     ret = semctl(semOrchServ, -1, IPC_RMID);
     myassert(ret != -1, "echec de la destruction du semaphore orch<-->serv\n");
+
+    destroy_pipesClientServNames();
 
     return EXIT_SUCCESS;
 }
