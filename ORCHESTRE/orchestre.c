@@ -41,8 +41,6 @@ void init_pipeClientServNames(){
 void destroy_pipesClientServNames(){
     myassert(pipesClientServNames != NULL, "Erreur : pipesClientServNames n'est pas initialisé");
     for (int i = 0; i < NB_SERV_DIF; i++){
-        free(pipesClientServNames[i][0]);
-        free(pipesClientServNames[i][1]);
         free(pipesClientServNames[i]);
     }
     free(pipesClientServNames);
@@ -121,7 +119,6 @@ int main(int argc, char * argv[])
         ret = pipe(pipesOrchToServ[i]);
         myassert(ret == 0, "echec de la creation du tube anonyme vers un service\n");
     }
-    printf("Creation pipe orch<-->service OK\n");
 
     //creation tubes client<-->service
     for (int i = 0; i < nb_serv; i++){
@@ -130,7 +127,6 @@ int main(int argc, char * argv[])
         ret = mkfifo(pipesClientServNames[i][1], 0644);
         myassert(ret == 0, "echec de la creation d'un tube client<--service\n");
     }
-    printf("Creation tubes client<-->service OK\n");
 
     //creation semaphores orch<-->service
     key = ftok(ORCH_SERV, ORCH_SERV_KEY);
@@ -142,21 +138,13 @@ int main(int argc, char * argv[])
         ret = semctl(semOrchServ, i, SETVAL, 1);
         myassert(ret != -1, "echec de l'iniitialisation du semaphore semOrchServ\n");
     }
-    printf("Creation et init sema orch<-->service OK\n");
 
     //lancement des services
     for (int i = 0; i < nb_serv; i++){
         ret = fork();
         myassert(ret != -1, "echec de la 1ere duplication de l'orchestre\n");
-        char * servArgv[7];
-        servArgv[0] = NULL;
-        servArgv[1] = NULL;   //num service
-        servArgv[2] = NULL;   //cle sema serv<-->orch
-        servArgv[3] = NULL;   //fd tube ano orch-->serv
-        servArgv[4] = NULL;   //nom pour mkfifo serv-->client
-        servArgv[5] = NULL;   //nom pour mkfifo client-->serv
-        servArgv[6] = NULL;
         if (ret == 0){
+            char * servArgv[7];
             servArgv[0] = name;
             servArgv[1] = io_intToStr(i);   //num service
             servArgv[2] = io_intToStr(ORCH_SERV_KEY);   //cle sema serv<-->orch
@@ -169,9 +157,6 @@ int main(int argc, char * argv[])
         }
         ret = close(pipesOrchToServ[i][0]);    //fermeture entree lecture
         myassert(ret == 0, "echec de la fermeture de l'entree lecture de pipeOrchToServ\n");
-        for (int i = 0; i < 4; i++)
-            free(servArgv[i]);
-        printf("Lancement du service %d OK\n", i);
     }
     printf("Lancement des services OK\n");
 
@@ -179,22 +164,20 @@ int main(int argc, char * argv[])
     {
         // ouverture ici des tubes nommés avec un client
         // attente d'une demande de service du client
-        printf("Entrée dans la boucle de l'orch OK\n");
 
         int pipeOrchToClient = open(ORCH_TO_CLIENT, O_WRONLY);
         myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en ecriture\n");
-        printf("Ouverture pipeOrchToClient OK\n");
+        
+        printf("Orchestre : En attente d'un Client...\n");
 
         int pipeClientToOrch = open(CLIENT_TO_ORCH, O_RDONLY);
         myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en lecture\n");
-        printf("Ouverture pipeClientToOrch OK\n");
-
+        
         int serv;
         ret = read(pipeClientToOrch, &serv, sizeof(int));
         myassert(ret != 0, "echec de la lecture de la demande de service dans le tube pipeClientToOrch\n");
         myassert(ret == sizeof(int), "erreur dans la lecture de la demande de service\n");
-        printf("Pas de client, on n'est pas censé arriver ici pour l'instant...\n");
-
+        
         // détecter la fin des traitements lancés précédemment via
         // les sémaphores dédiés (attention on n'attend pas la
         // fin des traitement, on note juste ceux qui sont finis)
@@ -205,7 +188,6 @@ int main(int argc, char * argv[])
             myassert(ret != -1, "echec de la recuperation de la valeur du semaphore semOrchServ\n");
             servDone[i] = ret == 1;
         }
-        printf("recup etat des services OK\n");
 
         // analyse de la demande du client
         // si ordre de fin
@@ -228,6 +210,7 @@ int main(int argc, char * argv[])
             case SERVICE_ARRET :
                 send = VALIDATION_CODE;
                 fin = true;
+                printf("Orchestre : demande d'arret reçue\n");
                 break;
             case SERVICE_SOMME :
                 if (servDone[SERVICE_SOMME] && config_isServiceOpen(SERVICE_SOMME)){
@@ -254,9 +237,8 @@ int main(int argc, char * argv[])
         }
         ret = write(pipeOrchToClient, &send, sizeof(int));
         myassert(ret != -1, "echec de l'envoi du code au client\n");
-        printf("envoi code service OK\n");
 
-        if (send == VALIDATION_CODE){
+        if (send == VALIDATION_CODE && serv >= 0){
             int password = rand();
             ret = write(pipesOrchToServ[serv][1], &serv, sizeof(int));
             myassert(ret != -1, "echec de l'envoi du code de travail\n");
@@ -270,14 +252,14 @@ int main(int argc, char * argv[])
 
             ret = write(pipeOrchToClient, &len, sizeof(int));
             myassert(ret != -1, "echec de l'envoi de la taille du nom du tube");
-            ret = write(pipeOrchToClient, &(pipesClientServNames[serv][0]), sizeof(char) * len);
+            ret = write(pipeOrchToClient, pipesClientServNames[serv][0], sizeof(char) * len);
             myassert(ret != -1, "echec de l'envoi du tube client-->serv\n");
 
             len = strlen(pipesClientServNames[serv][0]);
 
             ret = write(pipeOrchToClient, &len, sizeof(int));
             myassert(ret != -1, "echec de l'envoi de la taille du nom du tube");
-            ret = write(pipeOrchToClient, &(pipesClientServNames[serv][1]), sizeof(char) * len);
+            ret = write(pipeOrchToClient, pipesClientServNames[serv][1], sizeof(char) * len);
             myassert(ret != -1, "echec de l'envoi du tube client<--serv\n");
         }
 
@@ -296,16 +278,22 @@ int main(int argc, char * argv[])
         // (en attendant on fait une attente d'1 seconde, à supprimer dès
         // que le sémaphore est en place)
         // attendre avec un sémaphore que le client ait fermé les tubes
+        
         struct sembuf op = {0, -1, 0};
         ret = semop(ClientDone, &op, 1);
         myassert(ret != -1, "echec de l'operation sur le semaphore semClientOrch\n");
+        struct sembuf op_done = {0, 1, 0};
+        ret = semop(ClientDone, &op_done, 1);
+        myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
+        printf("Orchestre : fin de l'opération\n");
     }
 
     // attente de la fin des traitements en cours (via les sémaphores)
-    for (int i = 0; i < SERVICE_NB; i++){
+    for (int i = 0; i < nb_serv; i++){
         struct sembuf op = {i, -1, 0};
-        ret = semop(semClientOrch, &op, SERVICE_NB);
+        ret = semop(semOrchServ, &op, 1);
         myassert(ret != -1, "echec de l'operation sur le semaphore semClientOrch\n");
+        printf("Orchestre : le Service %d a fini\n", i);
     }
 
     // envoi à chaque service d'un code de fin
@@ -313,10 +301,12 @@ int main(int argc, char * argv[])
     for (int i = 0; i < nb_serv; i++){
         ret = write(pipesOrchToServ[i][1], &end, sizeof(int));
         myassert(ret != -1, "echec de l'envoi du code de fin a un des serv\n");
+        printf("Orchestre : demande d'arret envoyée au service %d\n", i);
     }
 
     // attente de la terminaison des processus services
-    for (int i = 0; i < SERVICE_NB; i++){
+    for (int i = 0; i < nb_serv; i++){
+        printf("Orchestre : attente de la fin de %d service(s)\n", nb_serv - i);
         wait(NULL);
     }
 
@@ -350,6 +340,7 @@ int main(int argc, char * argv[])
     myassert(ret != -1, "echec de la destruction du semaphore orch<-->serv\n");
 
     destroy_pipesClientServNames();
+    printf("Orchestre : Arret\n");
 
     return EXIT_SUCCESS;
 }

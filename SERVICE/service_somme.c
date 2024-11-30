@@ -20,10 +20,10 @@
 // fonction de réception des données
 static void receiveData(int fd_pipe_from_client, int *int1, int *int2)
 {
-    int int1_lu = read(fd_pipe_from_client, &int1, sizeof(int));
+    int int1_lu = read(fd_pipe_from_client, int1, sizeof(int));
     myassert(int1_lu == sizeof(int), "Erreur : problème dans le premier entier reçu.\n");
 
-    int int2_lu = read(fd_pipe_from_client, &int2, sizeof(int));
+    int int2_lu = read(fd_pipe_from_client, int2, sizeof(int));
     myassert(int2_lu == sizeof(int), "Erreur : problème dans le second entier reçu.\n");
 
     printf("Données reçues par le client : %d, %d\n", *int1, *int2);
@@ -48,13 +48,15 @@ static void sendResult(int fd_pipe_to_client, int somme)
 /*----------------------------------------------*
  * fonction appelable par le main
  *----------------------------------------------*/
-void service_somme(int fd_pipe_form_client, int fd_pipe_to_client)
+void service_somme(int fd_pipe_from_client, int fd_pipe_to_client)
 {
+    printf("fd_pipe_from_client = %d\n", fd_pipe_from_client);
+    printf("fd_pipe_to_client = %d\n", fd_pipe_to_client);
     int int1;
     int int2;
     int somme;
     
-    receiveData(fd_pipe_form_client, &int1, &int2);
+    receiveData(fd_pipe_from_client, &int1, &int2);
     computeResult(int1, int2, &somme);
     sendResult(fd_pipe_to_client, somme);
 }

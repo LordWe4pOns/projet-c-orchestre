@@ -38,7 +38,7 @@ void client_sigma_verifArgs(int argc, char * argv[])
 
     if (argc < 4)
         usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
-    if (argv[1][0] != 2)
+    if (argv[1][0] != '2')
         usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n" );
     if (nb_threads > argc - 3)
         usage(argv[0], argv[1], "Il ne peut pas y avoir plus de threads que de cases dans le tableau.\n");
@@ -105,13 +105,15 @@ static void receiveResult(int fd_pipe_from_service)
 //    - argv[3] à argv[argc-1]: les nombres flottants
 void client_sigma(int fd_pipe_to_service, int fd_pipe_from_service, int argc, char * argv[])
 {
+    printf("fd_pipe_to_service = %d\n", fd_pipe_to_service);
+    printf("fd_pipe_from_service = %d\n", fd_pipe_from_service);
     client_sigma_verifArgs(argc, argv);
 
     int nb_threads = atoi(argv[2]);
     int size = argc - 2;
     float tab_float[size];
 
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size - 1; i++) {
         tab_float[i] = atof(argv[i + 3]);
     }
 

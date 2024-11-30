@@ -16,6 +16,4 @@
 #define ERROR_CODE -1
 #define VALIDATION_CODE 0
 
-//void init_pipeClientServNames(char *** pipesClientServNames);
-
 #endif

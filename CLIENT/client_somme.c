@@ -43,7 +43,7 @@ void client_somme_verifArgs(int argc, char * argv[])
     sprintf(tabArg3, "%d", arg3);
 
     if (argc != 5)
-        usage(argv[0], argv[1], "nombre d'arguments incorrect.\n");
+        usage(argv[0], argv[1], "Nombre d'arguments incorrect.\n");
     if (argv[1][0] != '0')
         usage(argv[0], argv[1],"Ce n'est pas le bon numéro de service.\n" );
     if (strcmp(argv[2], tabArg2))
@@ -51,7 +51,7 @@ void client_somme_verifArgs(int argc, char * argv[])
     if (strcmp(argv[3], tabArg3))
         usage(argv[0], argv[1],"Le troisième paramètre doit être un entier.\n" );
     if (argv[4][0] == '\0')
-    usage(argv[0], argv[1], "la chaîne à afficher est vide.\n");
+    usage(argv[0], argv[1], "La chaîne à afficher est vide.\n");
 }
 
 

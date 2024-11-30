@@ -94,6 +94,8 @@ static void sendResult(int fd_pipe_to_client, float res)
  *----------------------------------------------*/
 void service_sigma(int fd_pipe_to_client, int fd_pipe_from_client)
 {
+    printf("fd_pipe_from_client = %d\n", fd_pipe_from_client);
+    printf("fd_pipe_to_client = %d\n", fd_pipe_to_client);
     // initialisations diverses
     int size, nbThreads;
     float* values = NULL;

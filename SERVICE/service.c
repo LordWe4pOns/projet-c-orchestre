@@ -37,12 +37,12 @@ static void usage(const char *exeName, const char *message)
  *----------------------------------------------*/
 int main(int argc, char * argv[])
 {
-    sleep(10);
     if (argc != 6)
         usage(argv[0], "nombre paramètres incorrect");
 
     // initialisations diverses : analyse de argv
     int servNum = atoi(argv[1]);    //numero du service
+    printf("Lancement du service %d OK\n", servNum);
 
     key_t key = ftok(ORCH_SERV, atoi(argv[2]));     //cle sema serv<-->orch
     myassert(key != -1, "echec de la creation de la cle pour le sema serv<-->orch\n");
@@ -50,13 +50,11 @@ int main(int argc, char * argv[])
     myassert(semOrchServ != -1, "echec de la recuperation du sema serv<-->orch\n");
 
     int pipeFromOrch = atoi(argv[3]);     //fd orch-->serv
-    printf("recup cle fd orch-->serv OK dans serv %d\n", servNum);
-
     char* servToClient = argv[4];
-    printf("recup cle fd serv-->client OK dans serv %d\n", servNum);
-
     char* clientToServ = argv[5];
-    printf("recup cle fd client-->serv OK dans serv %d\n", servNum);
+
+    printf("servToClient = **%s**\n", servToClient);
+    printf("clientToServ = **%s**\n", clientToServ);
 
     int ret;
     bool fin = false;
@@ -68,10 +66,7 @@ int main(int argc, char * argv[])
         int code;
         ret = read(pipeFromOrch, &code, sizeof(int));
         myassert(ret != -1, "echec de la reception du code par un service\n");
-
-        struct sembuf op ={servNum, -1, 0};
-        ret = semop(semOrchServ, &op, SERVICE_NB);
-        myassert(ret != -1, "echec du changement de valeur de semOrchServ\n");
+        printf("Service %d : code de travail %d reçu\n", servNum, code);
 
         // si code de fin
         //    sortie de la boucle
@@ -94,14 +89,21 @@ int main(int argc, char * argv[])
         //    modification du sémaphore pour prévenir l'orchestre de la fin
         // finsi
         if (code == SERVICE_ARRET){
+            printf("Service %d : demande d'arret reçue\n", servNum);
             fin = true;
         } else {
+            struct sembuf op ={servNum, -1, 0};
+            ret = semop(semOrchServ, &op, 1);
+            myassert(ret != -1, "echec du changement de valeur de semOrchServ\n");
+            printf("Service %d : en attente du mot de passe venant de l'orchestre\n", servNum);
             int password;
             ret = read(pipeFromOrch, &password, sizeof(int));
             myassert(ret != -1, "echec de la reception du mot de passe\n");
 
             int pipeServToClient = open(servToClient, O_WRONLY);     //ouverture tube serv-->client
             int pipeClientToServ = open(clientToServ, O_RDONLY);     //ouverture tube client-->serv
+            printf("pipeServToClient = %d\n", pipeServToClient);
+            printf("pipeClientToServ = %d\n", pipeClientToServ);
             
             int val;
             ret = read(pipeClientToServ, &val, sizeof(int));
@@ -120,20 +122,26 @@ int main(int argc, char * argv[])
                     case SERVICE_SIGMA : service_sigma(pipeClientToServ, pipeServToClient); break;
                     default : myassert(false, "erreur : numero de service incorrect\n");
                 }
+                
+                printf("Service %d : en attente de l'Accusé de reception\n", servNum);
                 ret = read(pipeClientToServ, &val, sizeof(int));
                 myassert(ret != -1, "echec de la reception de l'accusé\n");
+                printf("Accusé de reception %d OK\n", val);
+                
             }
             ret = close(pipeClientToServ);
             myassert(ret != -1, "echec de la fermeture du tube pipeClientToServ");
             ret = close(pipeServToClient);
             myassert(ret != -1, "echec de la fermeture du tube pipeServToClient");
+            printf("Service %d : fin des opérations\n", servNum);
             struct sembuf endOp = {servNum, 1, 0};
-            ret = semop(semOrchServ, &endOp, SERVICE_NB);
+            ret = semop(semOrchServ, &endOp, 1);
             myassert(ret != -1, "echec du changement de valeur de semOrchServ\n");
         }
     }
 
     // libération éventuelle de ressources
+    printf("Service %d : Arret\n", servNum);
 
     return EXIT_SUCCESS;
 }
