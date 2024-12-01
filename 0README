@@ -61,3 +61,13 @@ chmod u+x UTILS/rmsem.sh
 
 Lancement de l'orchestre :
 rm pipe* ; ./UTILS/rmsem.sh ; ORCHESTRE/orchestre CONFIG/config.txt
+
+Exemple de lancement Client 0 (Somme) :
+CLIENT/client 0 35 35 "==>"
+
+Exemple de lancement Client 1 (Compression) :
+CLIENT/client 1 teesstt
+
+Exemple de lancement Client 2 (Sigma) :
+CLIENT/client 2 5 10.0 25.5 13.4 55.6 13.2 456.2 23.32 13.37 80.08 70.7
+

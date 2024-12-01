@@ -57,50 +57,31 @@ int main(int argc, char * argv[])
     }
 
     // initialisations diverses s'il y a lieu
-    int ret;
-
-    key_t key = ftok(CLIENT_ORCH, CLIENT_ORCH_KEY);     //cle pour sema client<-->orch
-    myassert(key != -1, "echec de la creation de la cle pour le semaphore client<-->orch\n");
-
-    int semClientOrch = semget(key, 1, 0);    //recup sema client<-->orch
-    myassert(semClientOrch != -1, "echec de la recuperation du semaphore client<-->orch (semClientOrch)\n");
-
-
-    key = ftok(CLIENT_ORCH, CLIENT_DONE_KEY);     //cle pour sema pour attendre que le client ferme les tubes orch<-->client
-    myassert(key != -1, "echec de la creation de la cle pour le semaphore attente fermeture des tubes\n");
-
-    int ClientDone = semget(key, 1, 0);    //creation sema pour attendre que le client ferme les tubes orch<-->client
-    myassert(ClientDone != -1, "echec de la recuperation du semaphore attente fermeture des tubes\n");
-
+    key_t key = my_ftok(CLIENT_ORCH, CLIENT_ORCH_KEY);     //cle pour sema client<-->orch
+    int semClientOrch = my_semget(key, 1);
+    key = my_ftok(CLIENT_ORCH, CLIENT_DONE_KEY);     //cle pour sema pour attendre que le client ferme les tubes orch<-->client
+    int ClientDone = my_semget(key, 1);
+    
 
     // entrée en section critique pour communiquer avec l'orchestre
     printf("Acces a la section critique...\n");
     struct sembuf accessOrch = {0, -1, 0};
-    ret = semop(semClientOrch, &accessOrch, 1);
-    myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
-    printf("Acces a la section critique...\n");
-    ret = semop(ClientDone, &accessOrch, 1);
-    myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
-    printf("Acces réussi\n");
+    my_semop(semClientOrch, accessOrch);
+    my_semop(ClientDone, accessOrch);
+    printf("Acces a la section critique réussi\n");
 
     // ouverture des tubes avec l'orchestre
     printf("Connexion a l'orchestre...\n");
-    int pipeOrchToClient = open(ORCH_TO_CLIENT, O_RDONLY);
-    myassert(pipeOrchToClient != -1, "echec de l'ouverture du tube pipeOrchToClient en lecture\n");
-
-    int pipeClientToOrch = open(CLIENT_TO_ORCH, O_WRONLY);
-    myassert(pipeClientToOrch != -1, "echec de l'ouverture du tube pipeClientToOrch en ecriture\n");
-
+    int pipeOrchToClient = my_open(ORCH_TO_CLIENT, O_RDONLY);
+    int pipeClientToOrch = my_open(CLIENT_TO_ORCH, O_WRONLY);
+    printf("Connexion a l'orchestre réussie\n");
 
     // envoi à l'orchestre du numéro du service
-    ret = write(pipeClientToOrch, &numService, sizeof(int));
-    myassert(ret != -1, "echec de l'ecriture de la demande de service dans le tube pipeClientToOrch\n");
-    myassert(ret == sizeof(int), "erreur dans l'ecriture de la demande de service\n");
+    my_write(pipeClientToOrch, &numService, sizeof(int));
 
     // attente code de retour
     int retCode;
-    ret = read(pipeOrchToClient, &retCode, sizeof(int));
-    myassert(ret != -1, "echec de la recuperation du code de retour\n");
+    my_read(pipeOrchToClient, &retCode, sizeof(int));
 
     // si code d'erreur
     //     afficher un message erreur
@@ -140,58 +121,39 @@ int main(int argc, char * argv[])
         if (numService == -1){
             printf("Demande d'arret de l'orchestre validé\n");
         } else {
-            ret = read(pipeOrchToClient, &password, sizeof(int));
-            myassert(ret != -1, "echec de la reception du mot de passe\n");
+            my_read(pipeOrchToClient, &password, sizeof(int));
 
             int len;
 
-            ret = read(pipeOrchToClient, &len, sizeof(int));
-            myassert(ret == sizeof(int), "echec de la reception de la taille du nom du tube C2S");
-            printf("len = %d\n", len);
+            my_read(pipeOrchToClient, &len, sizeof(int));
             tubeC2S = malloc(sizeof(char) * (len + 1));
-            ret = read(pipeOrchToClient, tubeC2S, sizeof(char) * len);
-            myassert(ret != -1, "echec de la reception du tube client-->serv\n");
-            printf("tubeC2S = **%s**\n", tubeC2S);
+            my_read(pipeOrchToClient, tubeC2S, sizeof(char) * len);
             tubeC2S[len] = '\0';
 
-            ret = read(pipeOrchToClient, &len, sizeof(int));
-            myassert(ret == sizeof(int), "echec de la reception de la taille du nom du tube S2C");
+            my_read(pipeOrchToClient, &len, sizeof(int));
             tubeS2C = malloc(sizeof(char) * (len + 1));
-            ret = read(pipeOrchToClient, tubeS2C, sizeof(char) * len);
-            myassert(ret != -1, "echec de la reception du tube client<--serv\n");
-            printf("tubeS2C = **%s**\n", tubeS2C);
+            my_read(pipeOrchToClient, tubeS2C, sizeof(char) * len);
             tubeS2C[len] = '\0';
         }
     }
 
     int code = VALIDATION_CODE;
-    ret = write(pipeClientToOrch, &code, sizeof(int));
-    myassert(ret != -1, "echec de l'envoi de l'accuse de reception\n");
+    my_write(pipeClientToOrch, &code, sizeof(int));
 
-    ret = close(pipeClientToOrch);
-    myassert(ret != -1, "echec de la fermeture du tube pipeClientToOrch\n");
-    ret = close(pipeOrchToClient);
-    myassert(ret != -1, "echec de la fermeture du tube pipeOrchToClient\n");
+    my_close(pipeClientToOrch);
+    my_close(pipeOrchToClient);
 
     struct sembuf op = {0, 1, 0};
-    ret = semop(ClientDone, &op, 1);
-    myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
-    ret = semop(semClientOrch, &op, 1);
-    myassert(ret != -1, "echec de l'acces au semaphore client<-->orch (semClientOrch)");
+    my_semop(ClientDone, op);
+    my_semop(semClientOrch, op);
 
     if (retCode != ERROR_CODE && numService != -1){
-        int pipeServToClient = open(tubeS2C, O_RDONLY);     //ouverture tube serv-->client
-        myassert(pipeServToClient != -1, "echec de l'ouverture du tube pipeServToClient");
-        int pipeClientToServ = open(tubeC2S, O_WRONLY);     //ouverture tube client-->serv
-        myassert(pipeClientToServ != -1, "echec de l'ouverture du tube pipeClientToServ");
-        printf("pipeServToClient = %d\n", pipeServToClient);
-        printf("pipeClientToServ = %d\n", pipeClientToServ);
+        int pipeServToClient = my_open(tubeS2C, O_RDONLY);     //ouverture tube serv-->client
+        int pipeClientToServ = my_open(tubeC2S, O_WRONLY);     //ouverture tube client-->serv
  
-        ret = write(pipeClientToServ, &password, sizeof(int));
-        myassert(ret == sizeof(int), "echec de l'envoi du mot de passe au service\n");
+        my_write(pipeClientToServ, &password, sizeof(int));
 
-        ret = read(pipeServToClient, &retCode, sizeof(int));
-        myassert(ret == sizeof(int), "echec de la reception de l'accuse de reception\n");
+        my_read(pipeServToClient, &retCode, sizeof(int));
 
         if (retCode == ERROR_CODE){
             printf("Erreur : mot de passe incorrect\n");
@@ -202,17 +164,11 @@ int main(int argc, char * argv[])
                 case SERVICE_SIGMA : client_sigma(pipeClientToServ, pipeServToClient, argc, argv); break;
                 default : myassert(false, "erreur : numero de service incorrect\n");
             }
-            
-            printf("Client : en attente de l'Accusé de reception\n");
-            ret = write(pipeClientToServ, &retCode, sizeof(int));
-            myassert(ret != -1, "echec de l'envoi de l'accusé de reception\n");
-            printf("Accusé de reception %d envoyé au service\n", retCode);
+            my_write(pipeClientToServ, &retCode, sizeof(int));
             
         }
-        ret = close(pipeServToClient);
-        myassert(ret != -1, "echec de la fermeture du tube pipeServToClient\n");
-        ret = close(pipeClientToServ);
-        myassert(ret != -1, "echec de la fermeture du tube pipeClientToServ\n");
+        my_close(pipeServToClient);
+        my_close(pipeClientToServ);
     }
     
     // libération éventuelle de ressources

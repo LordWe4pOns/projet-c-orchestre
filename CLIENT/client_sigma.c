@@ -7,6 +7,7 @@
 #include "client_service.h"
 #include "client_sigma.h"
 #include "../UTILS/myassert.h"
+#include "../UTILS/io.h"
 
 
 /*----------------------------------------------*
@@ -67,16 +68,9 @@ void client_sigma_verifArgs(int argc, char * argv[])
 // - le tableau de float dont on veut la somme
 static void sendData(int fd_pipe_to_service, int nb_threads, float *tab_float, int size)
 {
-    int envoi_nb_threads = write(fd_pipe_to_service, &nb_threads, sizeof(nb_threads));
-    myassert(envoi_nb_threads == sizeof(nb_threads), "Erreur : tous les octets n'ont pas été envoyés.\n");
-
-    int envoi_size = write(fd_pipe_to_service, &size, sizeof(int));
-    myassert(envoi_size == sizeof(int), "erreur : echec de l'envoi de la taille du tableau\n");
-
-    int envoi_tab = write(fd_pipe_to_service, tab_float, sizeof(float) * size);
-    myassert(envoi_tab == (int)sizeof(float) * size, "Erreur : le tableau ne s'est pas bien envoyé.\n");
-
-    printf("Données envoyées au service : %d threads, %d valeurs.\n", nb_threads, size);
+    my_write(fd_pipe_to_service, &nb_threads, sizeof(nb_threads));
+    my_write(fd_pipe_to_service, &size, sizeof(int));
+    my_write(fd_pipe_to_service, tab_float, sizeof(float) * size);
 }
 
 // ---------------------------------------------
@@ -87,10 +81,7 @@ static void sendData(int fd_pipe_to_service, int nb_threads, float *tab_float, i
 static void receiveResult(int fd_pipe_from_service)
 {
     float res;
-
-    int res_lu = read(fd_pipe_from_service, &res, sizeof(res));
-    myassert(res_lu == sizeof(res), "Erreur : problème dans le résultat reçu.\n");
-
+    my_read(fd_pipe_from_service, &res, sizeof(float));
     printf("Résultat reçu du service : %f\n", res);
 }
 
@@ -105,15 +96,13 @@ static void receiveResult(int fd_pipe_from_service)
 //    - argv[3] à argv[argc-1]: les nombres flottants
 void client_sigma(int fd_pipe_to_service, int fd_pipe_from_service, int argc, char * argv[])
 {
-    printf("fd_pipe_to_service = %d\n", fd_pipe_to_service);
-    printf("fd_pipe_from_service = %d\n", fd_pipe_from_service);
     client_sigma_verifArgs(argc, argv);
 
     int nb_threads = atoi(argv[2]);
-    int size = argc - 2;
+    int size = argc - 3;
     float tab_float[size];
 
-    for (int i = 0; i < size - 1; i++) {
+    for (int i = 0; i < size; i++) {
         tab_float[i] = atof(argv[i + 3]);
     }
 
