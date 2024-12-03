@@ -33,6 +33,7 @@ typedef struct {
     int nb_val;
     float* values;
     float* res;
+    pthread_mutex_t *mutex;
 } ThreadData;
 
 static void * computeAux(void * arg){
@@ -41,15 +42,16 @@ static void * computeAux(void * arg){
     for (int i = data->indMin; i < data->indMin + data->nb_val; i++){
         my_res += data->values[i];
     }
+    my_pthread_mutex_lock(data->mutex);
     *(data->res) = *(data->res) + my_res;
+    my_pthread_mutex_unlock(data->mutex);
     return NULL;
 }
 
 // fonction de traitement des données
-static void computeResult(int size, int nbThreads, float* values, float* res)
+static void computeResult(int size, int nbThreads, float* values, float* res, pthread_mutex_t* mut)
 {
     pthread_t thArr[nbThreads];
-    int ret;
     int nb_val = size / nbThreads;
     ThreadData datas[nbThreads];
 
@@ -58,23 +60,22 @@ static void computeResult(int size, int nbThreads, float* values, float* res)
         datas[i].nb_val = nb_val;
         datas[i].values = values;
         datas[i].res = res;
+        datas[i].mutex = mut;
     }
 
     datas[nbThreads - 1].indMin = (nbThreads - 1) * nb_val;
     datas[nbThreads - 1].nb_val = nb_val + (size % nbThreads);
     datas[nbThreads - 1].values = values;
     datas[nbThreads - 1].res = res;
+    datas[nbThreads - 1].mutex = mut;
 
     for (int i = 0; i < nbThreads - 1; i++){
-        ret = pthread_create(&(thArr[i]), NULL, computeAux, &(datas[i]));
-        myassert(ret == 0, "Erreur : echec de la creation d'un thread.\n");
+        my_pthread_create(&(thArr[i]), NULL, computeAux, &(datas[i]));
     }
-    ret = pthread_create(&(thArr[nbThreads - 1]), NULL, computeAux, &(datas[nbThreads - 1]));
-    myassert(ret == 0, "Erreur : echec de la creation d'un thread.\n");
+    my_pthread_create(&(thArr[nbThreads - 1]), NULL, computeAux, &(datas[nbThreads - 1]));
 
     for (int i = 0; i < nbThreads; i++){
-        ret = pthread_join(thArr[i], NULL);
-        myassert(ret == 0, "Erreur : echec de l'attente d'un thread fils.\n");
+        my_pthread_join(thArr[i], NULL);
     }
 }
 
@@ -94,11 +95,13 @@ void service_sigma(int fd_pipe_from_client, int fd_pipe_to_client)
     int size, nbThreads;
     float* values = NULL;
     float res = 0.0;
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
     receiveData(fd_pipe_from_client, &size, &nbThreads, &values);
-    computeResult(size, nbThreads, values, &res);
+    computeResult(size, nbThreads, values, &res, &mutex);
     sendResult(fd_pipe_to_client, res);
 
     // libération éventuelle de ressources
+    my_pthread_mutex_destroy(&mutex);
     free(values);
 }

@@ -282,6 +282,8 @@ int main(int argc, char * argv[])
     my_semDestroy(ClientDone);
     my_semDestroy(semOrchServ);
 
+    config_exit();
+
     destroy_pipesClientServNames();
     printf("Orchestre : Arret\n");
 

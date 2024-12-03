@@ -152,6 +152,33 @@ void my_close(int fd){
     myassert(ret == 0, "echec de la fermeture du fichier\n");
 }
 
+void my_pthread_create(pthread_t *thread, const pthread_attr_t *attr,void *(*start_routine) (void *), void *arg){
+    int ret = pthread_create(thread, attr, start_routine, arg);
+    myassert(ret == 0, "chec de la création du thread");
+}
+
+
+void my_pthread_join(pthread_t th, void **thread_return){
+    int ret = pthread_join(th, thread_return);
+    myassert(ret == 0, "echec de l'attente du thread");
+}
+
+void my_pthread_mutex_lock(pthread_mutex_t *mutex){
+    int ret = pthread_mutex_lock(mutex);
+    myassert(ret == 0, "echec du blocage du thread");
+}
+
+void my_pthread_mutex_unlock(pthread_mutex_t *mutex){
+    int ret = pthread_mutex_unlock(mutex);
+    myassert(ret == 0, "echec du déblocage du thread");
+}
+
+void my_pthread_mutex_destroy(pthread_mutex_t* mutex){
+    int ret = pthread_mutex_destroy(mutex);
+    myassert(ret == 0, "echec de la destruction du thread");
+}
+
+
 
 
 // uncomment to test

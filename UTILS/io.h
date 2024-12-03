@@ -8,6 +8,7 @@
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 /*********************************************************************
  * manipulations générales sur les entrées/sorties :
@@ -48,6 +49,12 @@ void my_read(int fd, void *buf, size_t count);
 
 int my_open(const char *pathname, int flags);
 void my_close(int fd);
+
+void my_pthread_create(pthread_t *thread, const pthread_attr_t *attr,void *(*start_routine) (void *), void *arg);
+void my_pthread_join(pthread_t th, void **thread_return);
+void my_pthread_mutex_lock(pthread_mutex_t *mutex);
+void my_pthread_mutex_unlock(pthread_mutex_t *mutex);
+void my_pthread_mutex_destroy(pthread_mutex_t* mutex);
 
 
 #endif
