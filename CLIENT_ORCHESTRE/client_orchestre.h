@@ -7,7 +7,7 @@
 // - les deux tubes nommés pour la communication bidirectionnelle
 
 #define CLIENT_ORCH "CLIENT_ORCHESTRE/client_orchestre.h"
-#define CLIENT_ORCH_KEY 5 //5 normalement
+#define CLIENT_ORCH_KEY 5
 #define CLIENT_DONE_KEY 10
 #define CLIENT_TO_ORCH "pipe_o2c"
 #define ORCH_TO_CLIENT "pipe_c2o"
