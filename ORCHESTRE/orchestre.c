@@ -72,7 +72,6 @@ int main(int argc, char * argv[])
     char* name = malloc(sizeof(char) * strlen(config_getExeName()) + 1);
     strcpy(name, config_getExeName());
     int nb_serv = config_getNbServices();
-    myassert(nb_serv <= 3, "Erreur : il n'existe (pour l'instant) que 3 services");
 
     // Pour la communication avec les clients
     // - création de 2 tubes nommés pour converser avec les clients
